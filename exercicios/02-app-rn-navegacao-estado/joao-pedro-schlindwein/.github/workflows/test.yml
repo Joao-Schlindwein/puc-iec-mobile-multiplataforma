@@ -1,0 +1,34 @@
+name: Tests Atividade 2
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Rodar testes
+        run: npm test -- --json --outputFile=results.json --passWithNoTests
+
+      - name: Validar mínimo de testes
+        run: |
+          TESTS_PASSED=$(jq '.numPassedTests' results.json)
+          TESTS_TOTAL=$(jq '.numTotalTests' results.json)
+          echo "✅ Passou: $TESTS_PASSED / $TESTS_TOTAL"
+          MIN_REQUIRED=6
+          if [ "$TESTS_PASSED" -lt "$MIN_REQUIRED" ]; then
+            echo "❌ Mínimo $MIN_REQUIRED testes verdes obrigatório (encontrado: $TESTS_PASSED)"
+            exit 1
+          fi
+          echo "✅ Atende mínimo de $MIN_REQUIRED testes"
