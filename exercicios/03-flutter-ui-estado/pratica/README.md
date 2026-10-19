@@ -54,3 +54,37 @@ Fork + PR no repo público; link no Canvas. O **J.A.R.V.I.S.** lê o seu código
 Sem chave, o app usa a lista simulada (5 filmes). Para filmes reais: copie `.env.local.example` → `.env.local`,
 cole sua chave do TMDB (`TMDB_KEY=...`) e rode `./rodar.sh` / `rodar.bat` (ou F5 → "dados reais TMDB").
 O `.env.local` não vai pro git. Os testes (`flutter test`) nunca usam a chave.
+
+---
+
+## Entrega — João Pedro Schlindwein
+
+**Status:** `flutter analyze` limpo · `flutter test` 28/28 verdes (inclui TASKs 1–7, 9–15; TASK 8/Remote
+Config adiada conforme enunciado) · projeto Firebase pessoal (`atividade3-filmes-flutter`, plano Spark)
+com Firestore (modo teste) configurado e funcionando.
+
+### Local vs. cloud vs. offline-first (trade-offs)
+
+O app combina três camadas de estado, cada uma resolvendo um problema diferente. **Local** (o
+`favoritesProvider` em memória, Ex2) é instantâneo e não depende de rede, mas morre a cada reload e
+não sincroniza entre dispositivos. **Cloud** (Firestore, Ex4) resolve isso — o mesmo documento
+`favorites/meus-favoritos` é lido por qualquer cliente, então o favorito sobrevive ao F5 e sincroniza
+entre abas — ao custo de depender de rede/latência; por isso a escrita é **otimista** (o `state` local
+muda na hora, e a gravação remota acontece em paralelo, silenciosamente, com fallback se falhar).
+**Offline-first** (Ex6: `MovieRepository` cache-first + TTL + `SyncQueue`) é a camada que faz as duas
+coexistirem na prática: a tela sempre mostra o que já está salvo no aparelho primeiro (nunca espera a
+rede para renderizar), revalida em segundo plano quando a rede permite, e só busca de novo se o cache
+expirou (TTL) — evitando chamadas desnecessárias. Operações feitas offline (favoritar/desfavoritar)
+entram numa fila que resolve conflitos (ex: favoritar e desfavoritar o mesmo filme offline se cancelam
+mutuamente, sem gerar tráfego à toa) e só é esvaziada quando a rede volta, na ordem, persistindo a cada
+sucesso — se o app fechar no meio do envio, nada é perdido nem reenviado.
+
+### Evidências
+
+**Favoritos sobrevivendo a um F5 completo** (prova do Firestore — Ex4):
+
+![Matrix e Inception favoritados, contador ♥ 2, após refresh completo da página](./screenshot-favoritos-persistidos.jpg)
+
+**Modo offline** (banner + lista servida do cache — Ex6 / TASK 11+13):
+
+![Banner laranja "Você está offline — mostrando dados salvos" com a lista de filmes e favoritos intactos](./screenshot-offline.jpg)

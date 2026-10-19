@@ -44,25 +44,36 @@ class SyncQueue {
     // (pronto) idempotente: o mesmo id nunca entra duas vezes.
     if (ops.any((o) => o.id == op.id)) return;
 
-    // ── TASK 15a · REGRAS DE CONFLITO (🧑‍💻 EM CASA · difícil, parte 1) ──────────────────────
-    // Procure na fila uma operação PENDENTE do MESMO filme (`o.movieId == op.movieId`):
-    //   • se for a MESMA ação (ambas add, ou ambas remove) → não enfileire `op` (já está lá);
-    //   • se for a AÇÃO OPOSTA (add × remove) → as duas se CANCELAM: remova a antiga da fila,
-    //     salve, e NÃO enfileire `op` (o servidor nem precisa saber).
-    // Em qualquer desses casos: `await _save(...)` quando mudar a fila, e dê `return`.
-    // 👇 escreva aqui
+    final conflictIndex = ops.indexWhere((o) => o.movieId == op.movieId);
+    if (conflictIndex != -1) {
+      final existing = ops[conflictIndex];
+      if (existing.add == op.add) {
+        return; // mesma ação: já está na fila, não duplica
+      }
+      // ação oposta: as duas se cancelam
+      ops.removeAt(conflictIndex);
+      await _save(ops);
+      return;
+    }
 
     ops.add(op); // (pronto) sem conflito: vai pro fim da fila
     await _save(ops);
   }
 
-  // ── TASK 15b — flush (🧑‍💻 EM CASA · difícil, parte 2) ─────────────────────────────────
-  // Envie as operações na ORDEM da fila chamando `send(op)` (que pode lançar erro/offline).
-  //   - a cada sucesso: remova a operação da fila E persista (se o app fechar no meio, não reenvia);
-  //   - no PRIMEIRO erro: PARE (as restantes continuam na fila, na mesma ordem) e NÃO propague o erro;
-  //   - devolva quantas operações foram enviadas com sucesso.
-  // Dica: `final ops = await pending();` → percorra com for → try { await send(op); ... } catch (_) { break; }
   Future<int> flush(Future<void> Function(PendingOp op) send) async {
-    return 0; // 👈 implemente
+    var sentCount = 0;
+    var ops = await pending();
+    while (ops.isNotEmpty) {
+      final op = ops.first;
+      try {
+        await send(op);
+      } catch (_) {
+        break;
+      }
+      ops = ops.sublist(1);
+      await _save(ops);
+      sentCount++;
+    }
+    return sentCount;
   }
 }

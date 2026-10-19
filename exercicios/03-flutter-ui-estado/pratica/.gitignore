@@ -9,3 +9,4 @@ pubspec.lock
 .idea/
 .vscode/
 .env.local
+firebase-debug.log
