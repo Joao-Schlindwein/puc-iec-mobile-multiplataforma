@@ -59,6 +59,9 @@ flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 > Plugin 8.11.1 e Kotlin 2.2.20 (mínimos do Flutter 3.47). Se o Flutter estiver usando um Java mais
 > novo que o 17 (ex.: o Java do Android Studio), aponte para o JDK 17:
 > `flutter config --jdk-dir "<caminho do JDK 17>"`.
+>
+> **Windows, "Could not write file" / `ShaderCompilerException`:** é o limite de 260 caracteres de
+> caminho do Windows. Clone o repositório numa pasta de caminho curto (ex.: `C:\dev\`).
 
 ### Testes
 
