@@ -25,6 +25,12 @@ e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fech
 | 3 | **Busca** | Campo de busca que procura no catálogo inteiro da API (`search.php?s=<texto>`), com filtro local instantâneo enquanto a resposta chega |
 | 4 | **Filtro por categoria** | Chips com as 14 categorias reais da API (`categories.php`), traduzidas; tocar busca a categoria inteira na API (`filter.php?c=`) |
 | 5 | **Favoritos** | Coração na grade e no detalhe; aba Favoritos com contador, arrastar para remover e "Desfazer"; salvos com `shared_preferences` e mantidos ao fechar o app |
+| 6 | **Compartilhar receita** | Abre a folha nativa do Android com nome, ingredientes, medidas e link da fonte (ou do vídeo, se não houver fonte) |
+| 7 | **Ver vídeo** | Botão no detalhe somente quando há vídeo; abre o link HTTPS no aplicativo externo, com mensagem se falhar |
+
+![Ações no detalhe](screenshots/10-acoes-receita.png)
+
+![Folha de compartilhamento Android](screenshots/11-compartilhar.png)
 
 **Estados tratados (nunca tela branca):** carregando (skeleton que pulsa), lista vazia ou busca sem
 resultado, sem internet e erro do servidor (mensagens diferentes, com botão "Tentar de novo"), foto
@@ -66,7 +72,7 @@ flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 ### Testes
 
 ```bash
-flutter test     # 15 casos, sem internet (a API é simulada com MockClient)
+flutter test     # sem internet (a API é simulada com MockClient)
 flutter analyze  # sem avisos
 ```
 
@@ -76,6 +82,18 @@ flutter analyze  # sem avisos
 | `test/meal_list_controller_test.dart` | busca local e na API, categoria + busca combinadas, categoria sem receitas, sem internet × erro HTTP |
 | `test/favorites_controller_test.dart` | favorito sobrevive a "fechar o app", remover e desfazer na mesma posição, entrada corrompida ignorada |
 | `test/widget_test.dart` | app inteiro: lista → busca → favoritar → aba Favoritos; tela de sem internet |
+| `test/meal_share_test.dart` | texto compartilhado com nome, ingredientes e medidas; fonte, fallback para vídeo e ausência de links |
+| `test/recipe_actions_test.dart` | chamada nativa de compartilhar, falha em SnackBar, vídeo ausente e link inválido |
+
+Dependências das ações: `share_plus` 11.x (compatível com o AGP 8.11.1 do projeto)
+e `url_launcher`. A consulta de intents HTTPS está no `AndroidManifest.xml`.
+As receitas e seus links continuam vindo da API, sem chave ou cadastro.
+
+Validação das ações em 08/11/2026: `flutter analyze` sem avisos, 26 testes
+passando e `flutter build apk --debug` concluído (Flutter 3.47.9).
+No emulador Clinia Pixel 8: Flan → Compartilhar abre a folha Android com os sete
+ingredientes e link da fonte; Ver vídeo abre `m.youtube.com/watch?v=rpv_PXIoysE`
+no navegador externo. Os screenshots foram capturados no emulador.
 
 ## Arquitetura (resumo)
 

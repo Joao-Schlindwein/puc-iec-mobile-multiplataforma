@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/themealdb_api.dart';
 import '../models/meal.dart';
+import '../models/meal_share.dart';
 import '../state/favorites_controller.dart';
 import '../state/meal_detail_controller.dart';
 import '../state/meal_list_controller.dart' show LoadStatus;
@@ -42,8 +45,10 @@ class _DetailView extends StatelessWidget {
       (c) => c.isFavorite(meal.id),
     );
     final scheme = Theme.of(context).colorScheme;
-    final heroHeight =
-        (MediaQuery.sizeOf(context).height * 0.42).clamp(220.0, 380.0);
+    final heroHeight = (MediaQuery.sizeOf(context).height * 0.42).clamp(
+      220.0,
+      380.0,
+    );
 
     return Scaffold(
       body: Semantics(
@@ -69,8 +74,7 @@ class _DetailView extends StatelessWidget {
                   child: _RoundIconButton(
                     icon: isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: isFavorite ? scheme.primary : null,
-                    tooltip:
-                        isFavorite ? 'Remover dos favoritos' : 'Favoritar',
+                    tooltip: isFavorite ? 'Remover dos favoritos' : 'Favoritar',
                     onPressed: () => _toggleFavorite(context, isFavorite),
                   ),
                 ),
@@ -127,6 +131,7 @@ class _DetailView extends StatelessWidget {
         final detail = state.detail!;
         return [
           SliverToBoxAdapter(child: _InfoChips(detail: detail)),
+          SliverToBoxAdapter(child: _RecipeActions(detail: detail)),
           _sectionTitle(context, 'Ingredientes', detail.ingredients.length),
           SliverList.builder(
             itemCount: detail.ingredients.length,
@@ -168,8 +173,9 @@ class _DetailView extends StatelessWidget {
               const SizedBox(width: AppTokens.space2),
               Text(
                 '$count',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(color: theme.colorScheme.primary),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ],
           ],
@@ -187,12 +193,95 @@ class _DetailView extends StatelessWidget {
     await favorites.toggle(summary);
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(wasFavorite
-            ? 'Removida dos favoritos'
-            : 'Salva nos favoritos'),
-        duration: const Duration(seconds: 2),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite ? 'Removida dos favoritos' : 'Salva nos favoritos',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+}
+
+class _RecipeActions extends StatelessWidget {
+  final MealDetail detail;
+
+  const _RecipeActions({required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppTokens.space5),
+      child: Wrap(
+        spacing: AppTokens.space3,
+        runSpacing: AppTokens.space2,
+        children: [
+          Builder(
+            builder: (buttonContext) {
+              return OutlinedButton.icon(
+                onPressed: () => _share(buttonContext),
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Compartilhar'),
+              );
+            },
+          ),
+          if (detail.youtubeUrl.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: () => _openVideo(context),
+              icon: const Icon(Icons.play_circle_outline),
+              label: const Text('Ver vídeo'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _share(BuildContext context) async {
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      await SharePlus.instance.share(
+        ShareParams(
+          text: shareText(detail),
+          subject: detail.name,
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } on Object {
+      if (!context.mounted) return;
+      _showError(
+        context,
+        'Não foi possível compartilhar a receita. Tente novamente.',
+      );
+    }
+  }
+
+  Future<void> _openVideo(BuildContext context) async {
+    try {
+      final url = Uri.tryParse(detail.youtubeUrl);
+      if (url == null || url.scheme != 'https' || url.host.isEmpty) {
+        _showError(context, 'O link do vídeo é inválido.');
+        return;
+      }
+      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        _showError(
+          context,
+          'Não foi possível abrir o vídeo. Verifique se há um navegador instalado.',
+        );
+      }
+    } on Object {
+      if (!context.mounted) return;
+      _showError(context, 'Não foi possível abrir o vídeo. Tente novamente.');
+    }
+  }
+
+  void _showError(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -237,14 +326,29 @@ class _InfoChips extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final chips = <Widget>[
       if (detail.category.isNotEmpty)
-        _infoChip(context, Icons.restaurant_menu, categoryLabel(detail.category),
-            scheme.primaryContainer, scheme.onPrimaryContainer),
+        _infoChip(
+          context,
+          Icons.restaurant_menu,
+          categoryLabel(detail.category),
+          scheme.primaryContainer,
+          scheme.onPrimaryContainer,
+        ),
       if (detail.area.isNotEmpty)
-        _infoChip(context, Icons.public, detail.area,
-            scheme.secondaryContainer, scheme.onSecondaryContainer),
+        _infoChip(
+          context,
+          Icons.public,
+          detail.area,
+          scheme.secondaryContainer,
+          scheme.onSecondaryContainer,
+        ),
       for (final tag in detail.tags)
-        _infoChip(context, Icons.tag, tag, scheme.surfaceContainerHighest,
-            scheme.onSurfaceVariant),
+        _infoChip(
+          context,
+          Icons.tag,
+          tag,
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
+        ),
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.space5),
@@ -256,8 +360,13 @@ class _InfoChips extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(BuildContext context, IconData icon, String label,
-      Color background, Color foreground) {
+  Widget _infoChip(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color background,
+    Color foreground,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTokens.space3,
@@ -274,10 +383,9 @@ class _InfoChips extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(color: foreground),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: foreground),
           ),
         ],
       ),
@@ -321,8 +429,9 @@ class _IngredientRow extends StatelessWidget {
               child: Text(
                 ingredient.measure,
                 textAlign: TextAlign.end,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
         ],
@@ -380,20 +489,24 @@ class _DetailSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(children: [
-            SkeletonBox(width: 110, height: 30),
-            SizedBox(width: AppTokens.space2),
-            SkeletonBox(width: 80, height: 30),
-          ]),
+          const Row(
+            children: [
+              SkeletonBox(width: 110, height: 30),
+              SizedBox(width: AppTokens.space2),
+              SkeletonBox(width: 80, height: 30),
+            ],
+          ),
           const SizedBox(height: AppTokens.space5),
           const SkeletonBox(width: 160, height: 22),
           const SizedBox(height: AppTokens.space3),
           for (var i = 0; i < 5; i++) ...[
-            const Row(children: [
-              SkeletonBox(width: 44, height: 44),
-              SizedBox(width: AppTokens.space3),
-              Expanded(child: SkeletonBox(height: 16)),
-            ]),
+            const Row(
+              children: [
+                SkeletonBox(width: 44, height: 44),
+                SizedBox(width: AppTokens.space3),
+                Expanded(child: SkeletonBox(height: 16)),
+              ],
+            ),
             const SizedBox(height: AppTokens.space2),
           ],
         ],

@@ -79,6 +79,14 @@ injetado em `TheMealDbApi`, então os testes usam `MockClient` sem internet.
 
 ## Consequências
 
+Compartilhamento e vídeo são ações de plataforma no detalhe, sem HTTP nos widgets.
+`MealDetail` lê `strYoutube`/`strSource`, enquanto `shareText` monta o texto em
+uma função pura. A fonte tem preferência no compartilhamento, com o vídeo como
+alternativa; sem ambos, compartilhamos somente nome e ingredientes. Usamos
+`share_plus` 11.x para manter compatibilidade com o AGP existente, e
+`url_launcher` para abrir HTTPS externamente. Falhas dos plugins são convertidas
+em `SnackBar`; os testes simulam os canais nativos sem abrir aplicativos reais.
+
 - Positivo: lógica testável sem Flutter rodando (controllers e modelos), telas finas, um só lugar
   para o tema.
 - Negativo: `provider` depende de `BuildContext` (`context.read/watch`); um erro de árvore só

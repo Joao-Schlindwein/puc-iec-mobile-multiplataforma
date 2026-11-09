@@ -13,16 +13,16 @@ class MealSummary {
   });
 
   factory MealSummary.fromJson(Map<String, dynamic> json) => MealSummary(
-        id: json['idMeal'] as String,
-        name: json['strMeal'] as String,
-        thumbUrl: json['strMealThumb'] as String? ?? '',
-      );
+    id: json['idMeal'] as String,
+    name: json['strMeal'] as String,
+    thumbUrl: json['strMealThumb'] as String? ?? '',
+  );
 
   Map<String, dynamic> toJson() => {
-        'idMeal': id,
-        'strMeal': name,
-        'strMealThumb': thumbUrl,
-      };
+    'idMeal': id,
+    'strMeal': name,
+    'strMealThumb': thumbUrl,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -56,6 +56,8 @@ class MealDetail {
   final String instructions;
   final List<String> tags;
   final List<Ingredient> ingredients;
+  final String youtubeUrl;
+  final String sourceUrl;
 
   const MealDetail({
     required this.id,
@@ -66,22 +68,24 @@ class MealDetail {
     required this.instructions,
     required this.tags,
     required this.ingredients,
+    this.youtubeUrl = '',
+    this.sourceUrl = '',
   });
 
   factory MealDetail.fromJson(Map<String, dynamic> json) => MealDetail(
-        id: json['idMeal'] as String,
-        name: json['strMeal'] as String,
-        category: _text(json['strCategory']),
-        area: _text(json['strArea']),
-        thumbUrl: _text(json['strMealThumb']),
-        instructions: _text(json['strInstructions']),
-        tags: _text(json['strTags'])
-            .split(',')
-            .map((t) => t.trim())
-            .where((t) => t.isNotEmpty)
-            .toList(),
-        ingredients: _parseIngredients(json),
-      );
+    id: json['idMeal'] as String,
+    name: json['strMeal'] as String,
+    category: _text(json['strCategory']),
+    area: _text(json['strArea']),
+    thumbUrl: _text(json['strMealThumb']),
+    instructions: _text(json['strInstructions']),
+    youtubeUrl: _text(json['strYoutube']),
+    sourceUrl: _text(json['strSource']),
+    tags: _text(
+      json['strTags'],
+    ).split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
+    ingredients: _parseIngredients(json),
+  );
 
   MealSummary toSummary() =>
       MealSummary(id: id, name: name, thumbUrl: thumbUrl);
@@ -91,7 +95,11 @@ class MealDetail {
   List<String> get steps => instructions
       .split(RegExp(r'\r?\n'))
       .map((s) => s.trim())
-      .where((s) => s.isNotEmpty && !RegExp(r'^(step\s*)?\d+\.?$', caseSensitive: false).hasMatch(s))
+      .where(
+        (s) =>
+            s.isNotEmpty &&
+            !RegExp(r'^(step\s*)?\d+\.?$', caseSensitive: false).hasMatch(s),
+      )
       .toList();
 
   /// A API devolve `strIngredient1..20` e `strMeasure1..20`, com campos

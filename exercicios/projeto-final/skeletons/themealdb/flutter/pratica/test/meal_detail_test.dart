@@ -9,9 +9,11 @@ Map<String, dynamic> teriyakiJson() {
     'strMeal': 'Teriyaki Chicken Casserole',
     'strCategory': 'Chicken',
     'strArea': 'Japanese',
-    'strMealThumb': 'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
+    'strMealThumb':
+        'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
     'strTags': 'Meat,Casserole',
-    'strInstructions': 'STEP 1\r\nPreheat oven to 350° F.\r\n\r\nSTEP 2\r\n'
+    'strInstructions':
+        'STEP 1\r\nPreheat oven to 350° F.\r\n\r\nSTEP 2\r\n'
         'Combine soy sauce and sugar.',
     'strIngredient1': 'soy sauce',
     'strMeasure1': '3/4 cup',
@@ -33,11 +35,38 @@ Map<String, dynamic> teriyakiJson() {
 
 void main() {
   group('MealDetail.fromJson', () {
+    test('lê links de vídeo e fonte removendo espaços', () {
+      final detail = MealDetail.fromJson(
+        teriyakiJson()
+          ..['strYoutube'] = ' https://www.youtube.com/watch?v=abc '
+          ..['strSource'] = ' https://example.com/receita ',
+      );
+      expect(detail.youtubeUrl, 'https://www.youtube.com/watch?v=abc');
+      expect(detail.sourceUrl, 'https://example.com/receita');
+    });
+
+    test('links vazios, nulos e ausentes viram texto vazio', () {
+      for (final value in ['', '   ', null]) {
+        final detail = MealDetail.fromJson(
+          teriyakiJson()
+            ..['strYoutube'] = value
+            ..['strSource'] = value,
+        );
+        expect(detail.youtubeUrl, isEmpty);
+        expect(detail.sourceUrl, isEmpty);
+      }
+      final missing = MealDetail.fromJson(teriyakiJson());
+      expect(missing.youtubeUrl, isEmpty);
+      expect(missing.sourceUrl, isEmpty);
+    });
     test('só mantém ingredientes preenchidos, sem espaços sobrando', () {
       final detail = MealDetail.fromJson(teriyakiJson());
 
-      expect(detail.ingredients.map((i) => i.name),
-          ['soy sauce', 'water', 'brown sugar']);
+      expect(detail.ingredients.map((i) => i.name), [
+        'soy sauce',
+        'water',
+        'brown sugar',
+      ]);
       expect(detail.ingredients[1].measure, '1/2 cup');
     });
 
@@ -45,8 +74,10 @@ void main() {
       final detail = MealDetail.fromJson(teriyakiJson());
 
       expect(detail.tags, ['Meat', 'Casserole']);
-      expect(detail.steps,
-          ['Preheat oven to 350° F.', 'Combine soy sauce and sugar.']);
+      expect(detail.steps, [
+        'Preheat oven to 350° F.',
+        'Combine soy sauce and sugar.',
+      ]);
     });
 
     test('aguenta tags nulas e vira resumo para os favoritos', () {
