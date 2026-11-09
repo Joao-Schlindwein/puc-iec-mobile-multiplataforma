@@ -28,8 +28,14 @@ e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fech
 | 6 | **Explore A-Z** | Chips A-Z consultam `search.php?f=<letra>`; a busca por texto filtra os resultados da letra |
 | 7 | **Consulta offline** | Lista, categorias, letras e detalhes completos já carregados ficam em cache local |
 | 8 | **Lista de compras** | No detalhe, adicione ou remova os ingredientes da receita; na aba Compras, marque os comprados e use "Limpar comprados". Itens agrupados por receita e salvos ao fechar o app |
+| 9 | **Compartilhar receita** | Abre a folha nativa do Android com nome, ingredientes, medidas e link da fonte (ou do vídeo, se não houver fonte) |
+| 10 | **Ver vídeo** | Botão no detalhe somente quando há vídeo; abre o link HTTPS no aplicativo externo, com mensagem se falhar |
 
 ![Lista de compras agrupada por receita](screenshots/09-compras.png)
+
+![Ações no detalhe](screenshots/10-acoes-receita.png)
+
+![Folha de compartilhamento Android](screenshots/11-compartilhar.png)
 
 **Estados tratados (nunca tela branca):** carregando (skeleton que pulsa), lista vazia ou busca sem
 resultado, sem internet e erro do servidor (mensagens diferentes, com botão "Tentar de novo"), foto
@@ -74,7 +80,7 @@ flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 ### Testes
 
 ```bash
-flutter test     # TOTAL_TESTES casos, sem internet (a API é simulada com MockClient)
+flutter test     # 50 casos, sem internet (a API é simulada com MockClient)
 flutter analyze  # sem avisos
 ```
 
@@ -93,6 +99,19 @@ Validação da lista de compras em 08/11/2026: `flutter analyze` sem avisos,
 No emulador Clinia Pixel 8: adicionar ingredientes reais de Flan, marcar um item,
 encerrar o processo e reabrir preservando o checkbox, e limpar somente os comprados.
 O screenshot acima foi capturado após reabrir o app.
+
+| `test/meal_share_test.dart` | texto compartilhado com nome, ingredientes e medidas; fonte, fallback para vídeo e ausência de links |
+| `test/recipe_actions_test.dart` | chamada nativa de compartilhar, falha em SnackBar, vídeo ausente e link inválido |
+
+Dependências das ações: `share_plus` 11.x (compatível com o AGP 8.11.1 do projeto)
+e `url_launcher`. A consulta de intents HTTPS está no `AndroidManifest.xml`.
+As receitas e seus links continuam vindo da API, sem chave ou cadastro.
+
+Validação das ações em 08/11/2026: `flutter analyze` sem avisos, 26 testes
+passando e `flutter build apk --debug` concluído (Flutter 3.47.9).
+No emulador Clinia Pixel 8: Flan → Compartilhar abre a folha Android com os sete
+ingredientes e link da fonte; Ver vídeo abre `m.youtube.com/watch?v=rpv_PXIoysE`
+no navegador externo. Os screenshots foram capturados no emulador.
 
 ## Arquitetura (resumo)
 

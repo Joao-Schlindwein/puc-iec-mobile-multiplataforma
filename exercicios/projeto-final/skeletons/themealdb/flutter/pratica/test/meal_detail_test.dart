@@ -43,6 +43,30 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('MealDetail.fromJson', () {
+    test('lê links de vídeo e fonte removendo espaços', () {
+      final detail = MealDetail.fromJson(
+        teriyakiJson()
+          ..['strYoutube'] = ' https://www.youtube.com/watch?v=abc '
+          ..['strSource'] = ' https://example.com/receita ',
+      );
+      expect(detail.youtubeUrl, 'https://www.youtube.com/watch?v=abc');
+      expect(detail.sourceUrl, 'https://example.com/receita');
+    });
+
+    test('links vazios, nulos e ausentes viram texto vazio', () {
+      for (final value in ['', '   ', null]) {
+        final detail = MealDetail.fromJson(
+          teriyakiJson()
+            ..['strYoutube'] = value
+            ..['strSource'] = value,
+        );
+        expect(detail.youtubeUrl, isEmpty);
+        expect(detail.sourceUrl, isEmpty);
+      }
+      final missing = MealDetail.fromJson(teriyakiJson());
+      expect(missing.youtubeUrl, isEmpty);
+      expect(missing.sourceUrl, isEmpty);
+    });
     test('só mantém ingredientes preenchidos, sem espaços sobrando', () {
       final detail = MealDetail.fromJson(teriyakiJson());
 
@@ -116,6 +140,19 @@ void main() {
         ]);
       },
     );
+
+    test('vídeo e fonte sobrevivem ao cache offline do detalhe', () async {
+      final cache = MealsCache();
+      final json = mealDetailJson('52772', 'Teriyaki Chicken')
+        ..['strYoutube'] = 'https://www.youtube.com/watch?v=4aZr5hZXP_s'
+        ..['strSource'] = 'https://example.com/teriyaki';
+      await cache.saveDetail(MealDetail.fromJson(json));
+
+      final cached = await cache.loadDetail('52772');
+
+      expect(cached?.youtubeUrl, 'https://www.youtube.com/watch?v=4aZr5hZXP_s');
+      expect(cached?.sourceUrl, 'https://example.com/teriyaki');
+    });
 
     test('does not use cached details for a server error', () async {
       final cache = MealsCache();

@@ -6,19 +6,29 @@ class MealSummary {
   final String name;
   final String thumbUrl;
 
+  /// Detalhe completo, quando a API já o mandou junto com a lista
+  /// (`search.php` devolve as receitas inteiras; `filter.php`, não).
+  /// Permite abrir a receita offline a partir do cache da lista.
+  final MealDetail? detail;
+
   const MealSummary({
     required this.id,
     required this.name,
     required this.thumbUrl,
+    this.detail,
   });
 
   factory MealSummary.fromJson(Map<String, dynamic> json) => MealSummary(
     id: json['idMeal'] as String,
     name: json['strMeal'] as String,
     thumbUrl: json['strMealThumb'] as String? ?? '',
+    detail: json.containsKey('strInstructions')
+        ? MealDetail.fromJson(json)
+        : null,
   );
 
   Map<String, dynamic> toJson() => {
+    ...?detail?.toJson(),
     'idMeal': id,
     'strMeal': name,
     'strMealThumb': thumbUrl,
@@ -56,6 +66,8 @@ class MealDetail {
   final String instructions;
   final List<String> tags;
   final List<Ingredient> ingredients;
+  final String youtubeUrl;
+  final String sourceUrl;
 
   const MealDetail({
     required this.id,
@@ -66,6 +78,8 @@ class MealDetail {
     required this.instructions,
     required this.tags,
     required this.ingredients,
+    this.youtubeUrl = '',
+    this.sourceUrl = '',
   });
 
   factory MealDetail.fromJson(Map<String, dynamic> json) => MealDetail(
@@ -75,6 +89,8 @@ class MealDetail {
     area: _text(json['strArea']),
     thumbUrl: _text(json['strMealThumb']),
     instructions: _text(json['strInstructions']),
+    youtubeUrl: _text(json['strYoutube']),
+    sourceUrl: _text(json['strSource']),
     tags: _text(
       json['strTags'],
     ).split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
@@ -90,6 +106,9 @@ class MealDetail {
       'strMealThumb': thumbUrl,
       'strInstructions': instructions,
       'strTags': tags.join(','),
+      // Mantém vídeo e fonte no cache offline do detalhe.
+      'strYoutube': youtubeUrl,
+      'strSource': sourceUrl,
     };
     for (var i = 0; i < ingredients.length; i++) {
       json['strIngredient${i + 1}'] = ingredients[i].name;

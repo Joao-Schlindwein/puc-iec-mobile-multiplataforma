@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api/themealdb_api.dart';
 import '../models/meal.dart';
+import '../models/meal_share.dart';
 import '../state/favorites_controller.dart';
 import '../state/meal_detail_controller.dart';
 import '../state/shopping_list_controller.dart';
@@ -146,6 +149,7 @@ class _DetailView extends StatelessWidget {
             ),
           SliverToBoxAdapter(child: _InfoChips(detail: detail)),
           SliverToBoxAdapter(child: _ShoppingButton(detail: detail)),
+          SliverToBoxAdapter(child: _RecipeActions(detail: detail)),
           _sectionTitle(context, 'Ingredientes', detail.ingredients.length),
           SliverList.builder(
             itemCount: detail.ingredients.length,
@@ -266,6 +270,92 @@ class _ShoppingButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RecipeActions extends StatelessWidget {
+  final MealDetail detail;
+
+  const _RecipeActions({required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space5,
+        0,
+        AppTokens.space5,
+        AppTokens.space2,
+      ),
+      child: Wrap(
+        spacing: AppTokens.space3,
+        runSpacing: AppTokens.space2,
+        children: [
+          Builder(
+            builder: (buttonContext) {
+              return OutlinedButton.icon(
+                onPressed: () => _share(buttonContext),
+                icon: const Icon(Icons.share_outlined),
+                label: const Text('Compartilhar'),
+              );
+            },
+          ),
+          if (detail.youtubeUrl.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: () => _openVideo(context),
+              icon: const Icon(Icons.play_circle_outline),
+              label: const Text('Ver vídeo'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _share(BuildContext context) async {
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      await SharePlus.instance.share(
+        ShareParams(
+          text: shareText(detail),
+          subject: detail.name,
+          sharePositionOrigin: box == null
+              ? null
+              : box.localToGlobal(Offset.zero) & box.size,
+        ),
+      );
+    } on Object {
+      if (!context.mounted) return;
+      _showError(
+        context,
+        'Não foi possível compartilhar a receita. Tente novamente.',
+      );
+    }
+  }
+
+  Future<void> _openVideo(BuildContext context) async {
+    try {
+      final url = Uri.tryParse(detail.youtubeUrl);
+      if (url == null || url.scheme != 'https' || url.host.isEmpty) {
+        _showError(context, 'O link do vídeo é inválido.');
+        return;
+      }
+      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        _showError(
+          context,
+          'Não foi possível abrir o vídeo. Verifique se há um navegador instalado.',
+        );
+      }
+    } on Object {
+      if (!context.mounted) return;
+      _showError(context, 'Não foi possível abrir o vídeo. Tente novamente.');
+    }
+  }
+
+  void _showError(BuildContext context, String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

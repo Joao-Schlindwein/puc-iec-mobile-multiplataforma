@@ -65,6 +65,11 @@ class MealsCache {
       key,
       jsonEncode(meals.map((meal) => meal.toJson()).toList()),
     );
+    // Receitas que vieram completas na lista também abrem offline no detalhe.
+    for (final meal in meals) {
+      final detail = meal.detail;
+      if (detail != null) await saveDetail(detail);
+    }
   }
 
   String _detailKey(String id) => 'cache_detail_${Uri.encodeComponent(id)}';

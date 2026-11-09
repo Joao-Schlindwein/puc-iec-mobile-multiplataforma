@@ -91,7 +91,20 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Ingredientes'), findsOneWidget);
+      // Os botões de compras/compartilhar empurram o conteúdo para baixo:
+      // a lista só monta o que está visível, então rola até cada item.
+      final scrollable = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(
+        find.text('2 cups'),
+        200,
+        scrollable: scrollable,
+      );
       expect(find.text('2 cups'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Combine the ingredients.'),
+        200,
+        scrollable: scrollable,
+      );
       expect(find.text('Modo de preparo'), findsOneWidget);
       expect(find.text('Combine the ingredients.'), findsOneWidget);
     },
