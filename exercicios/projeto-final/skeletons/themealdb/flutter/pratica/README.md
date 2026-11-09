@@ -16,6 +16,10 @@ e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fech
 |---|---|---|---|
 | ![Preparo](screenshots/04-preparo.png) | ![Favoritos](screenshots/05-favoritos.png) | ![Tema escuro](screenshots/06-tema-escuro.png) | ![Sem internet](screenshots/07-sem-internet.png) |
 
+| Explorar A–Z | Sem internet, com receitas salvas |
+|---|---|
+| ![Explorar A–Z](screenshots/12-explorar-az.png) | ![Receitas salvas offline](screenshots/13-offline-salvas.png) |
+
 ## O que o app faz
 
 | # | Feature | Como funciona |
