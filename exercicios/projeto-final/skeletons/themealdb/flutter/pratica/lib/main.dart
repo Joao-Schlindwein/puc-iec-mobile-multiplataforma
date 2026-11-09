@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/list_screen.dart';
 import 'screens/favorites_screen.dart';
+import 'storage/meals_cache.dart';
 
 void main() {
   runApp(const TheMealDbFinalApp());
@@ -31,11 +32,14 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
+  final MealsCache _mealsCache = MealsCache();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _selectedIndex == 0 ? const ListScreen() : const FavoritesScreen(),
+      body: _selectedIndex == 0
+          ? ListScreen(cache: _mealsCache)
+          : const FavoritesScreen(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),

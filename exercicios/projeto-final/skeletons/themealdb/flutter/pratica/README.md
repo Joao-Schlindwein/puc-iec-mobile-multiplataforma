@@ -6,6 +6,9 @@ estados de loading/vazio/erro e todo o checklist de UI/UX (tema escuro, design t
 acessibilidade, ícone/splash) são **trabalho do grupo** — veja o [`enunciado.md`](../../../../enunciado.md).
 
 **API deste tema:** TheMealDB — receitas; filtro por categoria (`filter.php?c=`); id `String`.
+O app também oferece busca por letra (`search.php?f=`) e mantém listas da API em cache
+local para consulta offline. Ao ficar sem conexão, mostra os resultados salvos da lista,
+categoria ou letra atual e permite tentar novamente ou puxar a tela para atualizar.
 Endpoints exatos, fixtures dos testes e gotchas: [`temas/03-themealdb/README.md`](../../../../temas/03-themealdb/README.md).
 Regras completas e rubrica: [`enunciado.md`](../../../../enunciado.md).
 
@@ -32,6 +35,34 @@ flutter run          # com emulador Android aberto (ou dispositivo conectado)
 | 3 — Busca por texto | `TODO 3` | `lib/screens/list_screen.dart` |
 | 4 — Categoria/filtro (parâmetro real da API) | `TODO 4` | `lib/screens/list_screen.dart` |
 | 5 — Favoritos persistidos | `TODO 5` | `lib/screens/detail_screen.dart` + `lib/screens/favorites_screen.dart` |
+
+## Estados tratados
+
+Carregando, lista vazia, falha de rede sem cache, resultados em cache offline e atualização
+manual por botão ou gesto de puxar. O catálogo pode ser explorado de A a Z; a busca por texto
+filtra os resultados da letra ou categoria selecionada, e esses filtros são exclusivos.
+
+Os testes das features adicionais ficam em `test/list_screen_features_test.dart`.
+
+## Registro da contribuição — para atualizar a apresentação
+
+Esta contribuição implementa as duas melhorias que aparecem como próximos passos no slide 16:
+
+| Mudança | O que foi feito | Arquivos principais |
+|---|---|---|
+| Receitas offline | Persiste a lista inicial e os resultados de categoria/letra em `shared_preferences`. Se a API falhar por falta de conexão, a tela tenta carregar a cópia local, exibe o aviso “Sem internet — mostrando receitas salvas” e permite tentar novamente. Sem cópia, mostra erro com opção de nova tentativa. | `lib/storage/meals_cache.dart`, `lib/screens/list_screen.dart`, `lib/main.dart` |
+| Explorar A–Z | Adiciona busca por letra via `search.php?f=<letra>`. A resposta `meals: null` é tratada como lista vazia. A busca por texto filtra os resultados carregados; selecionar letra ou categoria limpa o outro filtro. | `lib/api/themealdb_api.dart`, `lib/screens/list_screen.dart` |
+| Testes | Cobre chamada por letra, resposta vazia, gravação do cache online, fallback offline da lista e da categoria, ausência de cache e combinação letra/busca/categoria. | `test/list_screen_features_test.dart` |
+
+### Sugestões para os slides
+
+- **Slide 3 (funcionalidades):** acrescentar “Acesso offline às últimas receitas carregadas” e “Exploração do catálogo por letra (A–Z)”.
+- **Slide 4 (demo):** demonstrar escolher uma letra, filtrar pelo nome e alternar para uma categoria; depois abrir a lista com rede desligada para mostrar o aviso e o cache. O fallback offline só pode ser demonstrado depois de carregar receitas com conexão.
+- **Slide 7 (arquitetura):** incluir `MealsCache` na camada de armazenamento. Atenção: esta cópia do skeleton não contém os controllers mostrados no slide; nestas alterações, a lógica de tela e as chamadas são coordenadas por `ListScreen`. Alinhar o desenho à versão que será apresentada ou refatorar para os controllers antes de afirmar essa separação.
+- **Slide 14 (qualidade):** nesta cópia local, `flutter test --no-pub` passou com 8 testes no total, incluindo os novos casos. Recontar após integrar à versão do grupo, pois ela pode ter outros testes.
+- **Slide 16 (limitações/próximos passos):** retirar “guardar a última lista para abrir offline” e “navegar o catálogo por letra” dos próximos passos. O cache cobre a lista inicial, categorias e letras consultadas; receitas ainda não carregadas não ficam disponíveis offline.
+
+Validação do ambiente local: os testes passaram. O APK e a execução em emulador não foram verificados nesta máquina porque não há Android SDK instalado.
 
 ## Como se autoverificar (opcional)
 
