@@ -78,6 +78,28 @@ injetado em `TheMealDbApi`, então os testes usam `MockClient` sem internet.
 - **Erros viram `ApiException` com texto para o usuário** e a flag `offline`, para a tela diferenciar
   "sem internet" de "o servidor falhou", sempre com botão "Tentar de novo".
 
+## Decisão 3 — Receitas em português: tradução no aparelho (ML Kit)
+
+A TheMealDB só tem conteúdo em inglês, e o app é para o Brasil. Escolhemos traduzir **no próprio aparelho**
+com `google_mlkit_translation`:
+
+- gratuito e sem chave, alinhado à regra do enunciado de não depender de serviço pago nem commitar segredo;
+- funciona offline depois do download único do modelo de português (~30 MB);
+- o texto das receitas não sai do aparelho.
+
+**Descartados:** um serviço online gratuito (limite diário, depende de internet e envia os textos a um
+terceiro) e um dicionário próprio (previsível, mas deixaria o modo de preparo e os nomes em inglês).
+
+**Como encaixa nas camadas:** `RecipeTranslator` é uma interface (o app usa `MlKitRecipeTranslator`, os
+testes um tradutor falso) e o `TranslationController` (`ChangeNotifier`) guarda as traduções em memória.
+Os dados continuam em inglês em todas as camadas; só a tela traduz, com `text()` síncrono que devolve o
+original e troca pela tradução quando ela chega. Isso mantém as fotos dos ingredientes (URL montada pelo nome
+em inglês), o cache offline e a lista de compras independentes do idioma, e o botão de idioma volta ao
+original sem recarregar nada. A busca traduz o texto digitado para inglês antes de ir à API.
+
+**Custo:** tradução automática erra em medidas e expressões culinárias ("To taste" → "Provar"), o primeiro
+uso precisa de internet para baixar o modelo, e o ML Kit só existe em Android e iOS.
+
 ## Consequências
 
 A lista de compras segue a mesma separação: `ShoppingItem` é imutável,

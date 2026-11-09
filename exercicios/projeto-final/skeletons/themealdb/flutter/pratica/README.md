@@ -34,6 +34,7 @@ e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fech
 | 8 | **Lista de compras** | No detalhe, adicione ou remova os ingredientes da receita; na aba Compras, marque os comprados e use "Limpar comprados". Itens agrupados por receita e salvos ao fechar o app |
 | 9 | **Compartilhar receita** | Abre a folha nativa do Android com nome, ingredientes, medidas e link da fonte (ou do vídeo, se não houver fonte) |
 | 10 | **Ver vídeo** | Botão no detalhe somente quando há vídeo; abre o link HTTPS no aplicativo externo, com mensagem se falhar |
+| 11 | **Receitas em português** | Nomes, ingredientes, medidas, origem e modo de preparo traduzidos no próprio aparelho (ML Kit, sem chave e offline depois do primeiro download); busca em português ("frango" encontra "Chicken"); botão de idioma na barra volta ao original em inglês |
 
 ![Lista de compras agrupada por receita](screenshots/09-compras.png)
 
@@ -84,7 +85,7 @@ flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 ### Testes
 
 ```bash
-flutter test     # 50 casos, sem internet (a API é simulada com MockClient)
+flutter test     # 57 casos, sem internet (a API é simulada com MockClient)
 flutter analyze  # sem avisos
 ```
 
@@ -105,6 +106,7 @@ encerrar o processo e reabrir preservando o checkbox, e limpar somente os compra
 O screenshot acima foi capturado após reabrir o app.
 
 | `test/meal_share_test.dart` | texto compartilhado com nome, ingredientes e medidas; fonte, fallback para vídeo e ausência de links |
+| `test/translation_test.dart` | tradução na exibição, receita inteira para compartilhar, preferência salva, sem modelo mostra o original, falha num texto, busca em português (API e local) |
 | `test/recipe_actions_test.dart` | chamada nativa de compartilhar, falha em SnackBar, vídeo ausente e link inválido |
 
 Dependências das ações: `share_plus` 11.x (compatível com o AGP 8.11.1 do projeto)
@@ -116,6 +118,25 @@ passando e `flutter build apk --debug` concluído (Flutter 3.47.9).
 No emulador Clinia Pixel 8: Flan → Compartilhar abre a folha Android com os sete
 ingredientes e link da fonte; Ver vídeo abre `m.youtube.com/watch?v=rpv_PXIoysE`
 no navegador externo. Os screenshots foram capturados no emulador.
+
+## Receitas em português (tradução no aparelho)
+
+A TheMealDB só fornece inglês. O app traduz o que aparece na tela com o
+[ML Kit Translation](https://developers.google.com/ml-kit/language/translation) do Google:
+
+- **No primeiro uso** o app baixa o modelo de português (~30 MB, também por dados móveis); enquanto isso o
+  ícone de idioma na barra mostra um indicador e as receitas aparecem no original. Depois, funciona **offline**.
+- **Os dados continuam em inglês** (API, cache, favoritos, lista de compras): só a exibição é traduzida. Assim
+  as fotos dos ingredientes, que a API monta pelo nome em inglês, continuam funcionando, e o botão de idioma
+  volta ao original na hora.
+- **Busca em português:** o texto digitado é traduzido para inglês antes de ir à API, e a busca local também
+  compara com o nome traduzido.
+- **Limitação:** é tradução automática. Nomes próprios de pratos ficam iguais ("Ezme"), e algumas medidas saem
+  literais ("To taste" vira "Provar" em vez de "a gosto"). Os textos da interface já eram escritos em português.
+
+| Detalhe em português | Busca "frango" |
+|---|---|
+| ![Detalhe traduzido](screenshots/14-detalhe-portugues.png) | ![Busca em português](screenshots/15-busca-frango.png) |
 
 ## Arquitetura (resumo)
 
