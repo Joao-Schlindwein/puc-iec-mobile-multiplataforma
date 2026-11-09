@@ -6,6 +6,7 @@ import '../models/meal.dart';
 import '../state/favorites_controller.dart';
 import '../state/meal_detail_controller.dart';
 import '../state/meal_list_controller.dart' show LoadStatus;
+import '../storage/meals_cache.dart';
 import '../ui/theme.dart';
 import '../ui/widgets/meal_image.dart';
 import '../ui/widgets/skeleton.dart';
@@ -23,8 +24,11 @@ class DetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) =>
-          MealDetailController(context.read<TheMealDbApi>(), meal.id)..load(),
+      create: (context) => MealDetailController(
+        context.read<TheMealDbApi>(),
+        meal.id,
+        cache: context.read<MealsCache>(),
+      )..load(),
       child: _DetailView(meal: meal),
     );
   }
@@ -126,6 +130,18 @@ class _DetailView extends StatelessWidget {
       case LoadStatus.ready:
         final detail = state.detail!;
         return [
+          if (state.offline)
+            SliverToBoxAdapter(
+              child: MaterialBanner(
+                content: const Text('Sem internet — mostrando detalhes salvos'),
+                actions: [
+                  TextButton(
+                    onPressed: state.load,
+                    child: const Text('Tentar de novo'),
+                  ),
+                ],
+              ),
+            ),
           SliverToBoxAdapter(child: _InfoChips(detail: detail)),
           _sectionTitle(context, 'Ingredientes', detail.ingredients.length),
           SliverList.builder(

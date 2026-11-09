@@ -81,6 +81,23 @@ class MealDetail {
     ingredients: _parseIngredients(json),
   );
 
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{
+      'idMeal': id,
+      'strMeal': name,
+      'strCategory': category,
+      'strArea': area,
+      'strMealThumb': thumbUrl,
+      'strInstructions': instructions,
+      'strTags': tags.join(','),
+    };
+    for (var i = 0; i < ingredients.length; i++) {
+      json['strIngredient${i + 1}'] = ingredients[i].name;
+      json['strMeasure${i + 1}'] = ingredients[i].measure;
+    }
+    return json;
+  }
+
   MealSummary toSummary() =>
       MealSummary(id: id, name: name, thumbUrl: thumbUrl);
 

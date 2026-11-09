@@ -26,11 +26,14 @@ e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fech
 | 4 | **Filtro por categoria** | Chips com as 14 categorias reais da API (`categories.php`), traduzidas; tocar busca a categoria inteira na API (`filter.php?c=`) |
 | 5 | **Favoritos** | Coração na grade e no detalhe; aba Favoritos com contador, arrastar para remover e "Desfazer"; salvos com `shared_preferences` e mantidos ao fechar o app |
 | 6 | **Explore A-Z** | Chips A-Z consultam `search.php?f=<letra>`; a busca por texto filtra os resultados da letra |
-| 7 | **Consulta offline** | Lista, categorias e letras ja consultadas ficam em cache local e podem ser exibidas sem conexao |
+| 7 | **Consulta offline** | Lista, categorias, letras e detalhes completos já carregados ficam em cache local |
 
 **Estados tratados (nunca tela branca):** carregando (skeleton que pulsa), lista vazia ou busca sem
 resultado, sem internet e erro do servidor (mensagens diferentes, com botão "Tentar de novo"), foto
-que não carrega (ícone no lugar). Os favoritos abrem mesmo sem internet.
+que não carrega (ícone no lugar). Os favoritos abrem mesmo sem internet. A lista inicial guarda
+também os detalhes completos recebidos da API, e detalhes abertos online ficam salvos para consulta
+offline, incluindo ingredientes e modo de preparo. Uma receita obtida apenas pelo filtro de
+categoria precisa ter seu detalhe aberto online antes de poder ser consultada offline.
 
 **Visual:** Material 3 com tema claro e escuro seguindo o sistema, cores e espaçamentos definidos em
 um único arquivo (`lib/ui/theme.dart`), grade que se adapta à largura (2 colunas no celular em pé,
@@ -68,7 +71,7 @@ flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 ### Testes
 
 ```bash
-flutter test     # 25 casos (inclui cache offline e busca A-Z), sem internet (a API é simulada com MockClient)
+flutter test     # 30 casos (inclui cache offline e busca A-Z), sem internet (a API é simulada com MockClient)
 flutter analyze  # sem avisos
 ```
 
@@ -76,6 +79,7 @@ flutter analyze  # sem avisos
 |---|---|
 | `test/meal_detail_test.dart` | leitura dos ingredientes (`strIngredient1..20` com vazios, nulos e espaços), tags e passos do preparo |
 | `test/meal_list_controller_test.dart` | busca local e na API, categoria + busca combinadas, categoria sem receitas, sem internet × erro HTTP |
+| `test/list_screen_features_test.dart` | cache offline da lista e abertura de detalhes salvos (ingredientes e preparo) |
 | `test/favorites_controller_test.dart` | favorito sobrevive a "fechar o app", remover e desfazer na mesma posição, entrada corrompida ignorada |
 | `test/widget_test.dart` | app inteiro: lista → busca → favoritar → aba Favoritos; tela de sem internet |
 
@@ -107,7 +111,7 @@ Esta contribuicao implementa os dois proximos passos do slide 16: explorar o cat
 
 | Mudanca | Implementacao | Arquivos principais |
 |---|---|---|
-| Cache offline | Salva a lista inicial, nomes das categorias, resultados de cada categoria e letras consultadas em `shared_preferences`. Quando a API indica falta de conexao, o controller usa o cache da origem selecionada e a tela mostra aviso e acao para tentar novamente. Erros HTTP continuam sendo tratados como erro do servidor. | `lib/storage/meals_cache.dart`, `lib/state/meal_list_controller.dart`, `lib/main.dart` |
+| Cache offline | Salva listas (incluindo detalhes completos retornados pela busca inicial), categorias, letras consultadas e detalhes abertos em `shared_preferences`. Quando a API indica falta de conexão, os dados salvos são exibidos com aviso e ação para tentar novamente. Erros HTTP continuam sendo tratados como erro do servidor. | `lib/storage/meals_cache.dart`, `lib/state/meal_list_controller.dart`, `lib/state/meal_detail_controller.dart`, `lib/main.dart` |
 | Explorar A-Z | Consulta `search.php?f=<letra>`, descarta respostas antigas quando a letra muda e trata `meals: null` como lista vazia. Categoria e letra sao exclusivas; a busca textual filtra localmente os resultados da letra. | `lib/api/themealdb_api.dart`, `lib/state/meal_list_controller.dart`, `lib/screens/list_screen.dart` |
 | Testes | Cobre gravacao e fallback do cache, offline sem cache, cache por categoria, resultados por letra, letra sem receitas, exclusividade dos filtros e busca textual combinada. A API falsa tambem responde a `search.php?f=`. | `test/fake_api.dart`, `test/meal_list_controller_test.dart` |
 

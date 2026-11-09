@@ -1,5 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:themeal_final/models/meal.dart';
+import 'package:themeal_final/state/meal_detail_controller.dart';
+import 'package:themeal_final/state/meal_list_controller.dart';
+import 'package:themeal_final/storage/meals_cache.dart';
+
+import 'fake_api.dart';
 
 /// Recorte real de `lookup.php?i=52772` (Teriyaki Chicken Casserole), com
 /// os campos vazios/nulos/só-espaço que a API manda de verdade.
@@ -9,9 +15,11 @@ Map<String, dynamic> teriyakiJson() {
     'strMeal': 'Teriyaki Chicken Casserole',
     'strCategory': 'Chicken',
     'strArea': 'Japanese',
-    'strMealThumb': 'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
+    'strMealThumb':
+        'https://www.themealdb.com/images/media/meals/wvpsxx1468256321.jpg',
     'strTags': 'Meat,Casserole',
-    'strInstructions': 'STEP 1\r\nPreheat oven to 350° F.\r\n\r\nSTEP 2\r\n'
+    'strInstructions':
+        'STEP 1\r\nPreheat oven to 350° F.\r\n\r\nSTEP 2\r\n'
         'Combine soy sauce and sugar.',
     'strIngredient1': 'soy sauce',
     'strMeasure1': '3/4 cup',
@@ -32,12 +40,17 @@ Map<String, dynamic> teriyakiJson() {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('MealDetail.fromJson', () {
     test('só mantém ingredientes preenchidos, sem espaços sobrando', () {
       final detail = MealDetail.fromJson(teriyakiJson());
 
-      expect(detail.ingredients.map((i) => i.name),
-          ['soy sauce', 'water', 'brown sugar']);
+      expect(detail.ingredients.map((i) => i.name), [
+        'soy sauce',
+        'water',
+        'brown sugar',
+      ]);
       expect(detail.ingredients[1].measure, '1/2 cup');
     });
 
@@ -45,8 +58,10 @@ void main() {
       final detail = MealDetail.fromJson(teriyakiJson());
 
       expect(detail.tags, ['Meat', 'Casserole']);
-      expect(detail.steps,
-          ['Preheat oven to 350° F.', 'Combine soy sauce and sugar.']);
+      expect(detail.steps, [
+        'Preheat oven to 350° F.',
+        'Combine soy sauce and sugar.',
+      ]);
     });
 
     test('aguenta tags nulas e vira resumo para os favoritos', () {
@@ -55,6 +70,69 @@ void main() {
 
       expect(detail.tags, isEmpty);
       expect(detail.toSummary().name, 'Teriyaki Chicken Casserole');
+    });
+  });
+
+  group('MealDetailController offline cache', () {
+    test('saves a detail fetched online for later offline use', () async {
+      final cache = MealsCache();
+      final controller = MealDetailController(
+        fakeApi(
+          details: {'52772': mealDetailJson('52772', 'Teriyaki Chicken')},
+        ),
+        '52772',
+        cache: cache,
+      );
+
+      await controller.load();
+      final cached = await cache.loadDetail('52772');
+
+      expect(controller.status, LoadStatus.ready);
+      expect(cached?.ingredients.single.name, 'chicken');
+      expect(cached?.steps, ['Combine the ingredients.', 'Cook until ready.']);
+    });
+
+    test(
+      'shows the saved ingredients and instructions without internet',
+      () async {
+        final cache = MealsCache();
+        await cache.saveDetail(
+          MealDetail.fromJson(mealDetailJson('52772', 'Teriyaki Chicken')),
+        );
+        final controller = MealDetailController(
+          fakeApi(failWith: 'offline'),
+          '52772',
+          cache: cache,
+        );
+
+        await controller.load();
+
+        expect(controller.status, LoadStatus.ready);
+        expect(controller.offline, isTrue);
+        expect(controller.detail?.ingredients.single.measure, '2 cups');
+        expect(controller.detail?.steps, [
+          'Combine the ingredients.',
+          'Cook until ready.',
+        ]);
+      },
+    );
+
+    test('does not use cached details for a server error', () async {
+      final cache = MealsCache();
+      await cache.saveDetail(
+        MealDetail.fromJson(mealDetailJson('52772', 'Teriyaki Chicken')),
+      );
+      final controller = MealDetailController(
+        fakeApi(failWith: 500),
+        '52772',
+        cache: cache,
+      );
+
+      await controller.load();
+
+      expect(controller.status, LoadStatus.error);
+      expect(controller.offline, isFalse);
+      expect(controller.detail, isNull);
     });
   });
 }

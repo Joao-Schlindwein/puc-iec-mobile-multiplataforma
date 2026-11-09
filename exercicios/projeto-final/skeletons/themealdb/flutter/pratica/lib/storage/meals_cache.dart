@@ -38,6 +38,27 @@ class MealsCache {
   Future<List<MealSummary>?> loadLetter(String letter) =>
       _load('cache_letter_${letter.toLowerCase()}');
 
+  Future<void> saveDetail(MealDetail detail) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_detailKey(detail.id), jsonEncode(detail.toJson()));
+  }
+
+  Future<MealDetail?> loadDetail(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = prefs.getString(_detailKey(id));
+    if (encoded == null) return null;
+
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is! Map<String, dynamic>) return null;
+      return MealDetail.fromJson(decoded);
+    } on FormatException {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+
   Future<void> _save(String key, List<MealSummary> meals) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -45,6 +66,8 @@ class MealsCache {
       jsonEncode(meals.map((meal) => meal.toJson()).toList()),
     );
   }
+
+  String _detailKey(String id) => 'cache_detail_${Uri.encodeComponent(id)}';
 
   Future<List<MealSummary>?> _load(String key) async {
     final prefs = await SharedPreferences.getInstance();

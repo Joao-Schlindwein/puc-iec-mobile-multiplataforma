@@ -66,6 +66,55 @@ void main() {
     );
   });
 
+  testWidgets(
+    'recipe details from the loaded list open offline with ingredients and instructions',
+    (tester) async {
+      final cache = MealsCache();
+      await open(
+        tester,
+        api: fakeApi(list: [mealDetailJson('1', 'Burek')]),
+        cache: cache,
+      );
+      await tester.pumpWidget(const SizedBox());
+
+      await open(
+        tester,
+        api: fakeApi(failWith: 'offline'),
+        cache: cache,
+      );
+
+      await tester.tap(find.text('Burek'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Sem internet — mostrando detalhes salvos'),
+        findsOneWidget,
+      );
+      expect(find.text('Ingredientes'), findsOneWidget);
+      expect(find.text('2 cups'), findsOneWidget);
+      expect(find.text('Modo de preparo'), findsOneWidget);
+      expect(find.text('Combine the ingredients.'), findsOneWidget);
+    },
+  );
+
+  test(
+    'detail fields from the API list survive the list cache round trip',
+    () async {
+      final cache = MealsCache();
+      final meal = MealSummary.fromJson(mealDetailJson('1', 'Burek'));
+      await cache.saveList([meal]);
+
+      final cachedList = await cache.loadList();
+
+      expect(cachedList?.single.detail?.ingredients.single.name, 'chicken');
+      expect(cachedList?.single.detail?.steps, [
+        'Combine the ingredients.',
+        'Cook until ready.',
+      ]);
+      expect((await cache.loadDetail('1'))?.name, 'Burek');
+    },
+  );
+
   testWidgets('letter chip loads recipes from that letter', (tester) async {
     await open(
       tester,

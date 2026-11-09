@@ -10,11 +10,21 @@ Map<String, dynamic> mealJson(String id, String name) => {
   'strMealThumb': 'https://example.com/$id.jpg',
 };
 
+Map<String, dynamic> mealDetailJson(String id, String name) => {
+  ...mealJson(id, name),
+  'strCategory': 'Chicken',
+  'strArea': 'Japanese',
+  'strInstructions': 'Combine the ingredients.\nCook until ready.',
+  'strIngredient1': 'chicken',
+  'strMeasure1': '2 cups',
+};
+
 /// API com respostas fixas, no formato real da TheMealDB.
 /// `failWith` simula falhas: 'offline' (sem rede) ou um status HTTP.
 TheMealDbApi fakeApi({
   List<Map<String, dynamic>>? list,
   Map<String, List<Map<String, dynamic>>> byLetter = const {},
+  Map<String, Map<String, dynamic>> details = const {},
 
   /// Catálogo inteiro, onde `search.php?s=<texto>` procura.
   List<Map<String, dynamic>> catalog = const [],
@@ -55,6 +65,11 @@ TheMealDbApi fakeApi({
         };
       case 'filter.php':
         body = {'meals': byCategory[q['c']]};
+      case 'lookup.php':
+        final detail = details[q['i']];
+        body = {
+          'meals': detail == null ? null : [detail],
+        };
       default:
         return http.Response('{}', 404);
     }

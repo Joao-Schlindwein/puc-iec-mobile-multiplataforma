@@ -36,16 +36,16 @@ class TheMealDbFinalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cache = mealsCache ?? MealsCache();
     return MultiProvider(
       providers: [
         Provider<TheMealDbApi>.value(value: api),
+        Provider<MealsCache>.value(value: cache),
         ChangeNotifierProvider(
           create: (_) => FavoritesController(favoritesStore)..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) =>
-              MealListController(api, cache: mealsCache ?? MealsCache())
-                ..load(),
+          create: (_) => MealListController(api, cache: cache)..load(),
         ),
       ],
       child: MaterialApp(
