@@ -3,18 +3,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:themeal_final/main.dart';
 import 'package:themeal_final/storage/favorites_store.dart';
+import 'package:themeal_final/storage/shopping_list_store.dart';
 
 import 'fake_api.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('lista carrega, busca filtra e favoritar aparece na aba',
-      (tester) async {
-    await tester.pumpWidget(TheMealDbFinalApp(
-      api: fakeApi(catalog: [mealJson('2', 'Sushi'), mealJson('3', 'Sushi Bowl')]),
-      favoritesStore: FavoritesStore(),
-    ));
+  testWidgets('lista carrega, busca filtra e favoritar aparece na aba', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      TheMealDbFinalApp(
+        api: fakeApi(
+          catalog: [mealJson('2', 'Sushi'), mealJson('3', 'Sushi Bowl')],
+        ),
+        favoritesStore: FavoritesStore(),
+        shoppingListStore: ShoppingListStore(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Burek'), findsOneWidget);
@@ -41,12 +48,16 @@ void main() {
     expect(find.widgetWithText(Card, 'Sushi'), findsOneWidget);
   });
 
-  testWidgets('sem internet mostra mensagem e botão de tentar de novo',
-      (tester) async {
-    await tester.pumpWidget(TheMealDbFinalApp(
-      api: fakeApi(failWith: 'offline'),
-      favoritesStore: FavoritesStore(),
-    ));
+  testWidgets('sem internet mostra mensagem e botão de tentar de novo', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      TheMealDbFinalApp(
+        api: fakeApi(failWith: 'offline'),
+        favoritesStore: FavoritesStore(),
+        shoppingListStore: ShoppingListStore(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Você está sem internet'), findsOneWidget);

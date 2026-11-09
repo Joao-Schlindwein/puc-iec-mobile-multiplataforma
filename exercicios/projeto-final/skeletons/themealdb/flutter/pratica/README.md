@@ -27,6 +27,9 @@ e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fech
 | 5 | **Favoritos** | Coração na grade e no detalhe; aba Favoritos com contador, arrastar para remover e "Desfazer"; salvos com `shared_preferences` e mantidos ao fechar o app |
 | 6 | **Explore A-Z** | Chips A-Z consultam `search.php?f=<letra>`; a busca por texto filtra os resultados da letra |
 | 7 | **Consulta offline** | Lista, categorias, letras e detalhes completos já carregados ficam em cache local |
+| 8 | **Lista de compras** | No detalhe, adicione ou remova os ingredientes da receita; na aba Compras, marque os comprados e use "Limpar comprados". Itens agrupados por receita e salvos ao fechar o app |
+
+![Lista de compras agrupada por receita](screenshots/09-compras.png)
 
 **Estados tratados (nunca tela branca):** carregando (skeleton que pulsa), lista vazia ou busca sem
 resultado, sem internet e erro do servidor (mensagens diferentes, com botão "Tentar de novo"), foto
@@ -71,7 +74,7 @@ flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 ### Testes
 
 ```bash
-flutter test     # 30 casos (inclui cache offline e busca A-Z), sem internet (a API é simulada com MockClient)
+flutter test     # TOTAL_TESTES casos, sem internet (a API é simulada com MockClient)
 flutter analyze  # sem avisos
 ```
 
@@ -82,17 +85,25 @@ flutter analyze  # sem avisos
 | `test/list_screen_features_test.dart` | cache offline da lista e abertura de detalhes salvos (ingredientes e preparo) |
 | `test/favorites_controller_test.dart` | favorito sobrevive a "fechar o app", remover e desfazer na mesma posição, entrada corrompida ignorada |
 | `test/widget_test.dart` | app inteiro: lista → busca → favoritar → aba Favoritos; tela de sem internet |
+| `test/shopping_list_controller_test.dart` | ingredientes, marcar/limpar, persistência, duplicatas, registros corrompidos e ordem das gravações |
+| `test/shopping_list_screen_test.dart` | detalhe → adicionar/remover compras → aba Compras → marcar e limpar |
+
+Validação da lista de compras em 08/11/2026: `flutter analyze` sem avisos,
+23 testes passando e `flutter build apk --debug` concluído (Flutter 3.47.9).
+No emulador Clinia Pixel 8: adicionar ingredientes reais de Flan, marcar um item,
+encerrar o processo e reabrir preservando o checkbox, e limpar somente os comprados.
+O screenshot acima foi capturado após reabrir o app.
 
 ## Arquitetura (resumo)
 
 ```
 lib/
   api/        TheMealDbApi — HTTP + JSON, erros viram ApiException com mensagem para o usuário
-  storage/    FavoritesStore, MealsCache â€” shared_preferences
-  models/     MealSummary, MealDetail, Ingredient
-  state/      MealListController, MealDetailController, FavoritesController (ChangeNotifier)
+  storage/    FavoritesStore, ShoppingListStore, MealsCache — shared_preferences
+  models/     MealSummary, MealDetail, Ingredient, ShoppingItem
+  state/      MealListController, MealDetailController, FavoritesController, ShoppingListController
   ui/         tema/tokens e widgets reutilizáveis (MealCard, MealImage, StateMessage, Skeleton)
-  screens/    ListScreen, DetailScreen, FavoritesScreen — sem fetch dentro dos widgets
+  screens/    ListScreen, DetailScreen, FavoritesScreen, ShoppingListScreen — sem fetch dentro dos widgets
 ```
 
 Estado com `ChangeNotifier` + `provider`. O porquê, e as alternativas descartadas (Riverpod, Bloc,

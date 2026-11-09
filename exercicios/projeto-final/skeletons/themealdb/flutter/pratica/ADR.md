@@ -36,6 +36,7 @@ Cada tela observa um controller com `ChangeNotifier`, entregue pela árvore com 
 | `MealListController` | lista inicial, categorias, categoria escolhida (busca na API), texto da busca |
 | `MealDetailController` | detalhe de uma receita (um por tela de detalhe) |
 | `FavoritesController` | favoritos compartilhados por grade, detalhe e aba Favoritos |
+| `ShoppingListController` | ingredientes e checkboxes compartilhados entre detalhe e aba Compras |
 
 O `FavoritesController` é o caso que justifica um gerenciador de estado: o coração na grade, o
 botão no detalhe e a aba Favoritos precisam mostrar o mesmo valor ao mesmo tempo. Com `setState`
@@ -78,6 +79,13 @@ injetado em `TheMealDbApi`, então os testes usam `MockClient` sem internet.
   "sem internet" de "o servidor falhou", sempre com botão "Tentar de novo".
 
 ## Consequências
+
+A lista de compras segue a mesma separação: `ShoppingItem` é imutável,
+`ShoppingListStore` salva JSON em chave própria do `shared_preferences`, e
+`ShoppingListController` atualiza os listeners antes de persistir. As gravações são
+serializadas para preservar a última mudança mesmo com toques rápidos. Os grupos
+usam o id da receita, evitando misturar receitas com nomes iguais. Cada entrada
+corrompida é ignorada individualmente ao recuperar a lista.
 
 - Positivo: lógica testável sem Flutter rodando (controllers e modelos), telas finas, um só lugar
   para o tema.

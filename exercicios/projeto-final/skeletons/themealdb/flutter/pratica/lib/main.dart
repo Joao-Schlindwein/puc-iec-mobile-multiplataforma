@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 import 'api/themealdb_api.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/list_screen.dart';
+import 'screens/shopping_list_screen.dart';
 import 'state/favorites_controller.dart';
 import 'state/meal_list_controller.dart';
+import 'state/shopping_list_controller.dart';
 import 'storage/favorites_store.dart';
 import 'storage/meals_cache.dart';
+import 'storage/shopping_list_store.dart';
 import 'ui/theme.dart';
 
 void main() {
@@ -16,6 +19,7 @@ void main() {
       api: TheMealDbApi(),
       favoritesStore: FavoritesStore(),
       mealsCache: MealsCache(),
+      shoppingListStore: ShoppingListStore(),
     ),
   );
 }
@@ -26,12 +30,14 @@ class TheMealDbFinalApp extends StatelessWidget {
   final TheMealDbApi api;
   final FavoritesStore favoritesStore;
   final MealsCache? mealsCache;
+  final ShoppingListStore? shoppingListStore;
 
   const TheMealDbFinalApp({
     super.key,
     required this.api,
     required this.favoritesStore,
     this.mealsCache,
+    this.shoppingListStore,
   });
 
   @override
@@ -46,6 +52,11 @@ class TheMealDbFinalApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => MealListController(api, cache: cache)..load(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              ShoppingListController(shoppingListStore ?? ShoppingListStore())
+                ..load(),
         ),
       ],
       child: MaterialApp(
@@ -80,7 +91,7 @@ class _HomeShellState extends State<HomeShell> {
       // IndexedStack mantém busca/categoria/rolagem ao trocar de aba.
       body: IndexedStack(
         index: _selectedIndex,
-        children: const [ListScreen(), FavoritesScreen()],
+        children: const [ListScreen(), FavoritesScreen(), ShoppingListScreen()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -107,6 +118,11 @@ class _HomeShellState extends State<HomeShell> {
               child: const Icon(Icons.favorite),
             ),
             label: 'Favoritos',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.shopping_basket_outlined),
+            selectedIcon: Icon(Icons.shopping_basket),
+            label: 'Compras',
           ),
         ],
       ),

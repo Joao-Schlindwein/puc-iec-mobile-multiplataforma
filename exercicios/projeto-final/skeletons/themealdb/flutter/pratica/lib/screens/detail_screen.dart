@@ -5,6 +5,7 @@ import '../api/themealdb_api.dart';
 import '../models/meal.dart';
 import '../state/favorites_controller.dart';
 import '../state/meal_detail_controller.dart';
+import '../state/shopping_list_controller.dart';
 import '../state/meal_list_controller.dart' show LoadStatus;
 import '../storage/meals_cache.dart';
 import '../ui/theme.dart';
@@ -46,8 +47,10 @@ class _DetailView extends StatelessWidget {
       (c) => c.isFavorite(meal.id),
     );
     final scheme = Theme.of(context).colorScheme;
-    final heroHeight =
-        (MediaQuery.sizeOf(context).height * 0.42).clamp(220.0, 380.0);
+    final heroHeight = (MediaQuery.sizeOf(context).height * 0.42).clamp(
+      220.0,
+      380.0,
+    );
 
     return Scaffold(
       body: Semantics(
@@ -73,8 +76,7 @@ class _DetailView extends StatelessWidget {
                   child: _RoundIconButton(
                     icon: isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: isFavorite ? scheme.primary : null,
-                    tooltip:
-                        isFavorite ? 'Remover dos favoritos' : 'Favoritar',
+                    tooltip: isFavorite ? 'Remover dos favoritos' : 'Favoritar',
                     onPressed: () => _toggleFavorite(context, isFavorite),
                   ),
                 ),
@@ -143,6 +145,7 @@ class _DetailView extends StatelessWidget {
               ),
             ),
           SliverToBoxAdapter(child: _InfoChips(detail: detail)),
+          SliverToBoxAdapter(child: _ShoppingButton(detail: detail)),
           _sectionTitle(context, 'Ingredientes', detail.ingredients.length),
           SliverList.builder(
             itemCount: detail.ingredients.length,
@@ -184,8 +187,9 @@ class _DetailView extends StatelessWidget {
               const SizedBox(width: AppTokens.space2),
               Text(
                 '$count',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(color: theme.colorScheme.primary),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ],
           ],
@@ -203,12 +207,65 @@ class _DetailView extends StatelessWidget {
     await favorites.toggle(summary);
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(wasFavorite
-            ? 'Removida dos favoritos'
-            : 'Salva nos favoritos'),
-        duration: const Duration(seconds: 2),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite ? 'Removida dos favoritos' : 'Salva nos favoritos',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+}
+
+class _ShoppingButton extends StatelessWidget {
+  final MealDetail detail;
+
+  const _ShoppingButton({required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    final shopping = context.watch<ShoppingListController>();
+    final included = shopping.containsMeal(detail.id);
+    return Padding(
+      padding: const EdgeInsets.all(AppTokens.space5),
+      child: FilledButton.tonalIcon(
+        onPressed: !shopping.loaded || detail.ingredients.isEmpty
+            ? null
+            : () async {
+                try {
+                  if (included) {
+                    await shopping.removeMeal(detail.id);
+                  } else {
+                    await shopping.addMeal(detail);
+                  }
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        included
+                            ? 'Receita removida da lista de compras'
+                            : 'Ingredientes adicionados à lista de compras',
+                      ),
+                    ),
+                  );
+                } on Object {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Não foi possível salvar a lista. Tente novamente.',
+                      ),
+                    ),
+                  );
+                }
+              },
+        icon: Icon(included ? Icons.check : Icons.add_shopping_cart),
+        label: Text(
+          included ? 'Na lista de compras' : 'Adicionar à lista de compras',
+        ),
+      ),
+    );
   }
 }
 
@@ -253,14 +310,29 @@ class _InfoChips extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final chips = <Widget>[
       if (detail.category.isNotEmpty)
-        _infoChip(context, Icons.restaurant_menu, categoryLabel(detail.category),
-            scheme.primaryContainer, scheme.onPrimaryContainer),
+        _infoChip(
+          context,
+          Icons.restaurant_menu,
+          categoryLabel(detail.category),
+          scheme.primaryContainer,
+          scheme.onPrimaryContainer,
+        ),
       if (detail.area.isNotEmpty)
-        _infoChip(context, Icons.public, detail.area,
-            scheme.secondaryContainer, scheme.onSecondaryContainer),
+        _infoChip(
+          context,
+          Icons.public,
+          detail.area,
+          scheme.secondaryContainer,
+          scheme.onSecondaryContainer,
+        ),
       for (final tag in detail.tags)
-        _infoChip(context, Icons.tag, tag, scheme.surfaceContainerHighest,
-            scheme.onSurfaceVariant),
+        _infoChip(
+          context,
+          Icons.tag,
+          tag,
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
+        ),
     ];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.space5),
@@ -272,8 +344,13 @@ class _InfoChips extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(BuildContext context, IconData icon, String label,
-      Color background, Color foreground) {
+  Widget _infoChip(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color background,
+    Color foreground,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTokens.space3,
@@ -290,10 +367,9 @@ class _InfoChips extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(color: foreground),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: foreground),
           ),
         ],
       ),
@@ -337,8 +413,9 @@ class _IngredientRow extends StatelessWidget {
               child: Text(
                 ingredient.measure,
                 textAlign: TextAlign.end,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
         ],
@@ -396,20 +473,24 @@ class _DetailSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(children: [
-            SkeletonBox(width: 110, height: 30),
-            SizedBox(width: AppTokens.space2),
-            SkeletonBox(width: 80, height: 30),
-          ]),
+          const Row(
+            children: [
+              SkeletonBox(width: 110, height: 30),
+              SizedBox(width: AppTokens.space2),
+              SkeletonBox(width: 80, height: 30),
+            ],
+          ),
           const SizedBox(height: AppTokens.space5),
           const SkeletonBox(width: 160, height: 22),
           const SizedBox(height: AppTokens.space3),
           for (var i = 0; i < 5; i++) ...[
-            const Row(children: [
-              SkeletonBox(width: 44, height: 44),
-              SizedBox(width: AppTokens.space3),
-              Expanded(child: SkeletonBox(height: 16)),
-            ]),
+            const Row(
+              children: [
+                SkeletonBox(width: 44, height: 44),
+                SizedBox(width: AppTokens.space3),
+                Expanded(child: SkeletonBox(height: 16)),
+              ],
+            ),
             const SizedBox(height: AppTokens.space2),
           ],
         ],
