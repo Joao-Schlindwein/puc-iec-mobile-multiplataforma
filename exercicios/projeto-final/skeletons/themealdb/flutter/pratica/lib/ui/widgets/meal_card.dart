@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/meal.dart';
 import '../../state/favorites_controller.dart';
+import '../../state/translation_controller.dart';
 import '../theme.dart';
 import 'meal_image.dart';
 
@@ -17,6 +18,7 @@ class MealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final name = context.watch<TranslationController>().text(meal.name);
     final isFavorite = context.select<FavoritesController, bool>(
       (c) => c.isFavorite(meal.id),
     );
@@ -24,7 +26,7 @@ class MealCard extends StatelessWidget {
     return Semantics(
       identifier: 'item-card-${meal.id}',
       button: true,
-      label: meal.name,
+      label: name,
       child: Card(
         child: InkWell(
           onTap: onTap,
@@ -56,11 +58,13 @@ class MealCard extends StatelessWidget {
                   AppTokens.space3,
                 ),
                 child: Text(
-                  meal.name,
+                  name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700, height: 1.2),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
                 ),
               ),
             ],

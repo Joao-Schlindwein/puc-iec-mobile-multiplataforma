@@ -7,10 +7,18 @@ import '../storage/meals_cache.dart';
 enum LoadStatus { loading, ready, error }
 
 /// Filtro local por nome, sem diferenciar maiúsculas e minúsculas.
-List<MealSummary> filterMeals(List<MealSummary> meals, String query) {
+List<MealSummary> filterMeals(
+  List<MealSummary> meals,
+  String query, {
+  String Function(String name)? alias,
+}) {
   final q = query.trim().toLowerCase();
   if (q.isEmpty) return meals;
-  return meals.where((m) => m.name.toLowerCase().contains(q)).toList();
+  return meals.where((m) {
+    if (m.name.toLowerCase().contains(q)) return true;
+    // Também acha pelo nome traduzido ("frango" encontra "Chicken Handi").
+    return alias != null && alias(m.name).toLowerCase().contains(q);
+  }).toList();
 }
 
 /// Estado da tela de receitas: lista inicial, categorias, letras e busca.
@@ -19,12 +27,23 @@ class MealListController extends ChangeNotifier {
   final MealsCache _cache;
   final Duration _searchDebounce;
 
+  /// Traduz o texto da busca para o idioma da API (inglês). Opcional: sem
+  /// ele, a busca vai como foi digitada.
+  final Future<String> Function(String query)? _queryToApiLanguage;
+
+  /// Nome como aparece na tela (traduzido), para a busca local.
+  final String Function(String name)? _displayName;
+
   MealListController(
     this._api, {
     MealsCache? cache,
     Duration searchDebounce = const Duration(milliseconds: 400),
+    Future<String> Function(String query)? queryToApiLanguage,
+    String Function(String name)? displayName,
   }) : _cache = cache ?? MealsCache(),
-       _searchDebounce = searchDebounce;
+       _searchDebounce = searchDebounce,
+       _queryToApiLanguage = queryToApiLanguage,
+       _displayName = displayName;
 
   LoadStatus _status = LoadStatus.loading;
   String? _errorMessage;
@@ -61,13 +80,14 @@ class MealListController extends ChangeNotifier {
   /// O que a grade mostra, com busca local aplicada à origem selecionada.
   List<MealSummary> get visible {
     if (_selectedCategory != null) {
-      return filterMeals(_categoryMeals, _searchText);
+      return filterMeals(_categoryMeals, _searchText, alias: _displayName);
     }
     if (_selectedLetter != null) {
-      return filterMeals(_letterMeals, _searchText);
+      return filterMeals(_letterMeals, _searchText, alias: _displayName);
     }
     if (_searchText.trim().isEmpty) return _all;
-    return _searchResults ?? filterMeals(_all, _searchText);
+    return _searchResults ??
+        filterMeals(_all, _searchText, alias: _displayName);
   }
 
   @visibleForTesting
@@ -236,7 +256,10 @@ class MealListController extends ChangeNotifier {
     _pendingSearch = Future.delayed(_searchDebounce, () async {
       if (requestId != _searchRequestId || _disposed) return;
       try {
-        _searchResults = await _api.search(query);
+        final apiQuery =
+            await (_queryToApiLanguage?.call(query) ?? Future.value(query));
+        if (requestId != _searchRequestId || _disposed) return;
+        _searchResults = await _api.search(apiQuery);
       } on ApiException {
         // A busca local continua disponível se a rede falhar.
       }

@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../models/meal.dart';
 import '../state/favorites_controller.dart';
+import '../state/translation_controller.dart';
 import '../ui/theme.dart';
 import '../ui/widgets/meal_image.dart';
 import '../ui/widgets/state_message.dart';
+import '../ui/widgets/translation_toggle.dart';
 import 'detail_screen.dart';
 
 /// Feature 5: receitas favoritadas, salvas no aparelho. Abre sem internet
@@ -19,24 +21,28 @@ class FavoritesScreen extends StatelessWidget {
     final items = favorites.items;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Favoritos')),
+      appBar: AppBar(
+        title: const Text('Favoritos'),
+        actions: const [TranslationToggle()],
+      ),
       body: !favorites.loaded
           ? const Center(child: CircularProgressIndicator())
           : items.isEmpty
-              ? const StateMessage(
-                  icon: Icons.favorite_border,
-                  title: 'Nenhum favorito ainda',
-                  message: 'Toque no coração de uma receita para guardá-la '
-                      'aqui. Ela continua salva mesmo se você fechar o app.',
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(AppTokens.space4),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: AppTokens.space3),
-                  itemBuilder: (context, index) =>
-                      _FavoriteTile(meal: items[index], index: index),
-                ),
+          ? const StateMessage(
+              icon: Icons.favorite_border,
+              title: 'Nenhum favorito ainda',
+              message:
+                  'Toque no coração de uma receita para guardá-la '
+                  'aqui. Ela continua salva mesmo se você fechar o app.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(AppTokens.space4),
+              itemCount: items.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(height: AppTokens.space3),
+              itemBuilder: (context, index) =>
+                  _FavoriteTile(meal: items[index], index: index),
+            ),
     );
   }
 }
@@ -69,9 +75,9 @@ class _FavoriteTile extends StatelessWidget {
         identifier: 'favorite-item-${meal.id}',
         child: Card(
           child: InkWell(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => DetailScreen(meal: meal)),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => DetailScreen(meal: meal))),
             child: Row(
               children: [
                 SizedBox(
@@ -82,7 +88,7 @@ class _FavoriteTile extends StatelessWidget {
                 const SizedBox(width: AppTokens.space4),
                 Expanded(
                   child: Text(
-                    meal.name,
+                    context.watch<TranslationController>().text(meal.name),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium,
@@ -107,12 +113,16 @@ class _FavoriteTile extends StatelessWidget {
     favorites.remove(meal.id);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('"${meal.name}" saiu dos favoritos'),
-        action: SnackBarAction(
-          label: 'Desfazer',
-          onPressed: () => favorites.add(meal, index: index),
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            '"${context.read<TranslationController>().peek(meal.name)}" saiu dos favoritos',
+          ),
+          action: SnackBarAction(
+            label: 'Desfazer',
+            onPressed: () => favorites.add(meal, index: index),
+          ),
         ),
-      ));
+      );
   }
 }

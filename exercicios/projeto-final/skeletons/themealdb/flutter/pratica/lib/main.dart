@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'api/themealdb_api.dart';
@@ -8,9 +9,12 @@ import 'screens/shopping_list_screen.dart';
 import 'state/favorites_controller.dart';
 import 'state/meal_list_controller.dart';
 import 'state/shopping_list_controller.dart';
+import 'state/translation_controller.dart';
 import 'storage/favorites_store.dart';
 import 'storage/meals_cache.dart';
 import 'storage/shopping_list_store.dart';
+import 'translation/mlkit_recipe_translator.dart';
+import 'translation/recipe_translator.dart';
 import 'ui/theme.dart';
 
 void main() {
@@ -20,6 +24,7 @@ void main() {
       favoritesStore: FavoritesStore(),
       mealsCache: MealsCache(),
       shoppingListStore: ShoppingListStore(),
+      translator: MlKitRecipeTranslator(),
     ),
   );
 }
@@ -32,12 +37,16 @@ class TheMealDbFinalApp extends StatelessWidget {
   final MealsCache? mealsCache;
   final ShoppingListStore? shoppingListStore;
 
+  /// Tradutor do conteúdo da API. Sem ele (testes), o app mostra o original.
+  final RecipeTranslator? translator;
+
   const TheMealDbFinalApp({
     super.key,
     required this.api,
     required this.favoritesStore,
     this.mealsCache,
     this.shoppingListStore,
+    this.translator,
   });
 
   @override
@@ -48,10 +57,25 @@ class TheMealDbFinalApp extends StatelessWidget {
         Provider<TheMealDbApi>.value(value: api),
         Provider<MealsCache>.value(value: cache),
         ChangeNotifierProvider(
+          create: (_) =>
+              TranslationController(translator ?? const NoRecipeTranslation())
+                ..load(),
+        ),
+        ChangeNotifierProvider(
           create: (_) => FavoritesController(favoritesStore)..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => MealListController(api, cache: cache)..load(),
+          create: (context) {
+            final translation = context.read<TranslationController>();
+            return MealListController(
+              api,
+              cache: cache,
+              // Busca em português: a API recebe o texto em inglês, e a busca
+              // local também compara com o nome traduzido.
+              queryToApiLanguage: translation.toEnglish,
+              displayName: translation.peek,
+            )..load();
+          },
         ),
         ChangeNotifierProvider(
           create: (_) =>
@@ -65,6 +89,10 @@ class TheMealDbFinalApp extends StatelessWidget {
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
         themeMode: ThemeMode.system,
+        // Textos do próprio Flutter (voltar, colar, datas…) em português.
+        locale: const Locale('pt', 'BR'),
+        supportedLocales: const [Locale('pt', 'BR'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: const HomeShell(),
       ),
     );

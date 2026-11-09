@@ -9,6 +9,7 @@ import '../models/meal_share.dart';
 import '../state/favorites_controller.dart';
 import '../state/meal_detail_controller.dart';
 import '../state/shopping_list_controller.dart';
+import '../state/translation_controller.dart';
 import '../state/meal_list_controller.dart' show LoadStatus;
 import '../storage/meals_cache.dart';
 import '../ui/theme.dart';
@@ -100,7 +101,9 @@ class _DetailView extends StatelessWidget {
                 child: Semantics(
                   identifier: 'detail-title',
                   child: Text(
-                    detailState.detail?.name ?? meal.name,
+                    context.watch<TranslationController>().text(
+                      detailState.detail?.name ?? meal.name,
+                    ),
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
@@ -314,10 +317,14 @@ class _RecipeActions extends StatelessWidget {
   Future<void> _share(BuildContext context) async {
     try {
       final box = context.findRenderObject() as RenderBox?;
+      // Compartilha o texto já traduzido (espera todas as partes).
+      final shared = await context
+          .read<TranslationController>()
+          .translateDetail(detail);
       await SharePlus.instance.share(
         ShareParams(
-          text: shareText(detail),
-          subject: detail.name,
+          text: shareText(shared),
+          subject: shared.name,
           sharePositionOrigin: box == null
               ? null
               : box.localToGlobal(Offset.zero) & box.size,
@@ -398,6 +405,7 @@ class _InfoChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tr = context.watch<TranslationController>();
     final chips = <Widget>[
       if (detail.category.isNotEmpty)
         _infoChip(
@@ -411,7 +419,7 @@ class _InfoChips extends StatelessWidget {
         _infoChip(
           context,
           Icons.public,
-          detail.area,
+          tr.text(detail.area),
           scheme.secondaryContainer,
           scheme.onSecondaryContainer,
         ),
@@ -419,7 +427,7 @@ class _InfoChips extends StatelessWidget {
         _infoChip(
           context,
           Icons.tag,
-          tag,
+          tr.text(tag),
           scheme.surfaceContainerHighest,
           scheme.onSurfaceVariant,
         ),
@@ -475,6 +483,7 @@ class _IngredientRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tr = context.watch<TranslationController>();
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTokens.space5,
@@ -496,12 +505,15 @@ class _IngredientRow extends StatelessWidget {
           ),
           const SizedBox(width: AppTokens.space3),
           Expanded(
-            child: Text(ingredient.name, style: theme.textTheme.bodyLarge),
+            child: Text(
+              tr.text(ingredient.name),
+              style: theme.textTheme.bodyLarge,
+            ),
           ),
           if (ingredient.measure.isNotEmpty)
             Flexible(
               child: Text(
-                ingredient.measure,
+                tr.text(ingredient.measure),
                 textAlign: TextAlign.end,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
@@ -543,7 +555,7 @@ class _StepRow extends StatelessWidget {
           const SizedBox(width: AppTokens.space3),
           Expanded(
             child: Text(
-              text,
+              context.watch<TranslationController>().text(text),
               style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
             ),
           ),

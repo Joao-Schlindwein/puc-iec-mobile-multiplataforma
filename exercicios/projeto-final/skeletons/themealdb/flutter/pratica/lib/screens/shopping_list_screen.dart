@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/shopping_list_controller.dart';
+import '../state/translation_controller.dart';
 import '../ui/theme.dart';
 import '../ui/widgets/state_message.dart';
+import '../ui/widgets/translation_toggle.dart';
 
 class ShoppingListScreen extends StatelessWidget {
   const ShoppingListScreen({super.key});
@@ -11,9 +13,13 @@ class ShoppingListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shopping = context.watch<ShoppingListController>();
+    final tr = context.watch<TranslationController>();
     final groups = shopping.groupedByMeal.values.toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Compras')),
+      appBar: AppBar(
+        title: const Text('Compras'),
+        actions: const [TranslationToggle()],
+      ),
       body: !shopping.loaded
           ? const Center(child: CircularProgressIndicator())
           : groups.isEmpty
@@ -52,7 +58,7 @@ class ShoppingListScreen extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.all(AppTokens.space4),
                               child: Text(
-                                items.first.mealName,
+                                tr.text(items.first.mealName),
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ),
@@ -62,7 +68,7 @@ class ShoppingListScreen extends StatelessWidget {
                                 controlAffinity:
                                     ListTileControlAffinity.leading,
                                 title: Text(
-                                  item.ingredient,
+                                  tr.text(item.ingredient),
                                   style: TextStyle(
                                     decoration: item.checked
                                         ? TextDecoration.lineThrough
@@ -71,7 +77,7 @@ class ShoppingListScreen extends StatelessWidget {
                                 ),
                                 subtitle: item.measure.isEmpty
                                     ? null
-                                    : Text(item.measure),
+                                    : Text(tr.text(item.measure)),
                                 onChanged: (_) =>
                                     _save(context, () => shopping.toggle(item)),
                               ),

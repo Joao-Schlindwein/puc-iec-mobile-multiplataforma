@@ -7,6 +7,7 @@ import '../ui/theme.dart';
 import '../ui/widgets/meal_card.dart';
 import '../ui/widgets/skeleton.dart';
 import '../ui/widgets/state_message.dart';
+import '../ui/widgets/translation_toggle.dart';
 import 'detail_screen.dart';
 
 /// Colunas da grade conforme a largura: 2 no celular em pé, mais em
@@ -33,7 +34,10 @@ class _ListScreenState extends State<ListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Receitas')),
+      appBar: AppBar(
+        title: const Text('Receitas'),
+        actions: const [TranslationToggle()],
+      ),
       body: Semantics(
         identifier: 'item-list-screen',
         child: Column(
