@@ -16,10 +16,15 @@ class MealsCache {
 
   Future<List<MealSummary>?> loadList() => _load(_listKey);
 
-  Future<void> saveCategories(List<MealSummary> meals) =>
-      _save(_categoriesKey, meals);
+  Future<void> saveCategories(List<String> categories) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_categoriesKey, categories);
+  }
 
-  Future<List<MealSummary>?> loadCategories() => _load(_categoriesKey);
+  Future<List<String>?> loadCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_categoriesKey);
+  }
 
   Future<void> saveCategory(String category, List<MealSummary> meals) =>
       _save(_categoryKey(category), meals);

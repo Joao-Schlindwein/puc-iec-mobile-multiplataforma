@@ -1,330 +1,132 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../api/themealdb_api.dart';
 import '../models/meal.dart';
-import '../storage/meals_cache.dart';
+import '../state/meal_list_controller.dart';
+import '../ui/theme.dart';
+import '../ui/widgets/meal_card.dart';
+import '../ui/widgets/skeleton.dart';
+import '../ui/widgets/state_message.dart';
 import 'detail_screen.dart';
 
-const List<String> _categories = ['Dessert', 'Beef', 'Seafood', 'Vegetarian'];
-const String _alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+/// Colunas da grade conforme a largura: 2 no celular em pé, mais em
+/// paisagem/tablet.
+int gridColumnsFor(double width) => (width / 190).floor().clamp(2, 5);
 
+/// Features 1 (lista), 3 (busca) e 4 (categoria).
 class ListScreen extends StatefulWidget {
-  const ListScreen({super.key, this.api, this.cache});
-
-  final TheMealDbApi? api;
-  final MealsCache? cache;
+  const ListScreen({super.key});
 
   @override
   State<ListScreen> createState() => _ListScreenState();
 }
 
 class _ListScreenState extends State<ListScreen> {
-  late final TheMealDbApi _api = widget.api ?? TheMealDbApi();
-  late final MealsCache _cache = widget.cache ?? MealsCache();
-
-  List<MealSummary> _all = [];
-  bool _loading = true;
-  bool _fromCache = false;
-  String? _error;
-  String _searchText = '';
-  String? _selectedCategory;
-  String? _selectedLetter;
-  int _requestId = 0;
+  final TextEditingController _search = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _loadList();
-  }
-
-  Future<void> _loadList() async {
-    final requestId = ++_requestId;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final meals = await _api.fetchList();
-      await _cache.saveList(meals);
-      if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _all = meals;
-        _selectedCategory = null;
-        _selectedLetter = null;
-        _fromCache = false;
-        _loading = false;
-      });
-    } catch (error) {
-      final cached = error is ApiException && error.offline
-          ? await _cache.loadList()
-          : null;
-      if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _loading = false;
-        if (cached != null) {
-          _all = cached;
-          _selectedCategory = null;
-          _selectedLetter = null;
-          _fromCache = true;
-          _error = null;
-        } else {
-          _error = error is ApiException && error.offline
-              ? 'Você está sem internet e ainda não há receitas salvas.'
-              : 'Não foi possível carregar as receitas.';
-        }
-      });
-    }
-  }
-
-  Future<void> _selectCategory(String? category) async {
-    if (category == null) {
-      setState(() {
-        _selectedCategory = null;
-        _selectedLetter = null;
-        _all = [];
-      });
-      await _loadList();
-      return;
-    }
-    final requestId = ++_requestId;
-    setState(() {
-      _selectedCategory = category;
-      _selectedLetter = null;
-      _loading = true;
-      _error = null;
-      _fromCache = false;
-    });
-    try {
-      final meals = await _api.fetchByCategory(category);
-      await _cache.saveCategory(category, meals);
-      await _cache.saveCategories(meals);
-      if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _all = meals;
-        _loading = false;
-      });
-    } catch (error) {
-      final cached = error is ApiException && error.offline
-          ? await _cache.loadCategory(category)
-          : null;
-      if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _loading = false;
-        if (cached != null) {
-          _all = cached;
-          _fromCache = true;
-        } else {
-          _error = error is ApiException && error.offline
-              ? 'Você está sem internet e não há receitas salvas para esta categoria.'
-              : 'Não foi possível carregar esta categoria.';
-        }
-      });
-    }
-  }
-
-  Future<void> _selectLetter(String? letter) async {
-    if (letter == null) {
-      setState(() {
-        _selectedLetter = null;
-        _selectedCategory = null;
-      });
-      await _loadList();
-      return;
-    }
-    final requestId = ++_requestId;
-    setState(() {
-      _selectedLetter = letter;
-      _selectedCategory = null;
-      _loading = true;
-      _error = null;
-      _fromCache = false;
-    });
-    try {
-      final meals = await _api.fetchByLetter(letter);
-      await _cache.saveLetter(letter, meals);
-      if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _all = meals;
-        _loading = false;
-      });
-    } catch (error) {
-      final cached = error is ApiException && error.offline
-          ? await _cache.loadLetter(letter)
-          : null;
-      if (!mounted || requestId != _requestId) return;
-      setState(() {
-        _loading = false;
-        if (cached != null) {
-          _all = cached;
-          _fromCache = true;
-        } else {
-          _error = error is ApiException && error.offline
-              ? 'Você está sem internet e não há receitas salvas para esta letra.'
-              : 'Não foi possível carregar as receitas.';
-        }
-      });
-    }
-  }
-
-  List<MealSummary> get _filtered {
-    final query = _searchText.trim().toLowerCase();
-    if (query.isEmpty) return _all;
-    return _all
-        .where((meal) => meal.name.toLowerCase().contains(query))
-        .toList();
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('TheMealDB')),
-      body: Semantics(identifier: 'item-list-screen', child: _buildBody()),
+      appBar: AppBar(title: const Text('Receitas')),
+      body: Semantics(
+        identifier: 'item-list-screen',
+        child: Column(
+          children: [
+            _SearchField(controller: _search),
+            const _CategoryChips(),
+            const _LetterChips(),
+            const _OfflineCacheBanner(),
+            const SizedBox(height: AppTokens.space2),
+            const Expanded(child: _ListBody()),
+          ],
+        ),
+      ),
     );
   }
+}
 
-  Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _retry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Tentar de novo'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return Column(
-      children: [
-        if (_fromCache)
-          MaterialBanner(
-            content: const Text('Sem internet — mostrando receitas salvas'),
-            actions: [
-              TextButton(
-                onPressed: _retry,
-                child: const Text('Tentar de novo'),
-              ),
-            ],
-          ),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Semantics(
-            identifier: 'search-input',
-            child: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Buscar receita',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (value) => setState(() => _searchText = value),
+class _SearchField extends StatelessWidget {
+  final TextEditingController controller;
+
+  const _SearchField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final list = context.read<MealListController>();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.space4,
+        AppTokens.space1,
+        AppTokens.space4,
+        AppTokens.space3,
+      ),
+      child: Semantics(
+        identifier: 'search-input',
+        child: ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller,
+          builder: (context, value, _) => TextField(
+            controller: controller,
+            textInputAction: TextInputAction.search,
+            onChanged: list.setSearch,
+            decoration: InputDecoration(
+              hintText: 'Buscar receita pelo nome',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: value.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Limpar busca',
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        controller.clear();
+                        list.setSearch('');
+                      },
+                    ),
             ),
           ),
         ),
-        SizedBox(
-          height: 44,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              _buildCategoryChip(null, 'Todos'),
-              for (final category in _categories)
-                _buildCategoryChip(category, category),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: 42,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: [
-              for (final letter in _alphabet.split(''))
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: ChoiceChip(
-                    key: ValueKey('letter-$letter'),
-                    label: Text(letter),
-                    visualDensity: VisualDensity.compact,
-                    selected: _selectedLetter == letter,
-                    onSelected: (_) => _selectLetter(letter),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _retry,
-            child: _filtered.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      const SizedBox(height: 80),
-                      Center(
-                        child: Text(
-                          _searchText.isEmpty
-                              ? 'Nenhuma receita encontrada.'
-                              : 'Nenhuma receita corresponde à busca.',
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _filtered.length,
-                    itemBuilder: (context, index) {
-                      final meal = _filtered[index];
-                      return Semantics(
-                        identifier: 'item-card-${meal.id}',
-                        child: ListTile(
-                          leading: meal.thumbUrl.isNotEmpty
-                              ? Image.network(
-                                  meal.thumbUrl,
-                                  width: 40,
-                                  height: 40,
-                                )
-                              : null,
-                          title: Text(meal.name),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => DetailScreen(mealId: meal.id),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ),
-      ],
+      ),
+    );
+  }
+}
+
+class _CategoryChips extends StatelessWidget {
+  const _CategoryChips();
+
+  @override
+  Widget build(BuildContext context) {
+    final list = context.watch<MealListController>();
+    if (list.categories.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppTokens.space3),
+        children: [
+          _chip(context, list, null, 'Todas'),
+          for (final category in list.categories)
+            _chip(context, list, category, categoryLabel(category)),
+        ],
+      ),
     );
   }
 
-  Future<void> _retry() async {
-    if (_selectedCategory case final category?) {
-      await _selectCategory(category);
-    } else if (_selectedLetter case final letter?) {
-      await _selectLetter(letter);
-    } else {
-      await _loadList();
-    }
-  }
-
-  Widget _buildCategoryChip(String? category, String label) {
-    final selected = _selectedCategory == category && _selectedLetter == null;
+  Widget _chip(
+    BuildContext context,
+    MealListController list,
+    String? category,
+    String label,
+  ) {
+    final selected =
+        list.selectedLetter == null && list.selectedCategory == category;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.space1),
       child: Semantics(
         identifier: category == null
             ? 'category-chip-all'
@@ -332,9 +134,174 @@ class _ListScreenState extends State<ListScreen> {
         child: ChoiceChip(
           label: Text(label),
           selected: selected,
-          onSelected: (_) => _selectCategory(category),
+          showCheckmark: false,
+          onSelected: (_) => list.selectCategory(category),
         ),
       ),
+    );
+  }
+}
+
+class _LetterChips extends StatelessWidget {
+  const _LetterChips();
+
+  @override
+  Widget build(BuildContext context) {
+    final list = context.watch<MealListController>();
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppTokens.space3),
+        children: [
+          for (final letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: ChoiceChip(
+                key: ValueKey('letter-$letter'),
+                label: Text(letter),
+                visualDensity: VisualDensity.compact,
+                selected: list.selectedLetter == letter,
+                onSelected: (_) => list.selectLetter(letter),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OfflineCacheBanner extends StatelessWidget {
+  const _OfflineCacheBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final list = context.watch<MealListController>();
+    if (!list.fromCache || list.status != LoadStatus.ready) {
+      return const SizedBox.shrink();
+    }
+    return MaterialBanner(
+      content: const Text('Sem internet — mostrando receitas salvas'),
+      actions: [
+        TextButton(onPressed: list.retry, child: const Text('Tentar de novo')),
+      ],
+    );
+  }
+}
+
+class _ListBody extends StatelessWidget {
+  const _ListBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final list = context.watch<MealListController>();
+    final columns = gridColumnsFor(MediaQuery.sizeOf(context).width);
+
+    switch (list.status) {
+      case LoadStatus.loading:
+        return SkeletonGrid(crossAxisCount: columns);
+      case LoadStatus.error:
+        return StateMessage(
+          icon: list.offline ? Icons.wifi_off : Icons.cloud_off,
+          title: list.offline
+              ? 'Você está sem internet'
+              : 'Não deu para carregar as receitas',
+          message: list.errorMessage ?? 'Tente novamente em instantes.',
+          actionLabel: 'Tentar de novo',
+          onAction: list.retry,
+        );
+      case LoadStatus.ready:
+        final meals = list.visible;
+        if (meals.isEmpty && list.searching) {
+          return SkeletonGrid(crossAxisCount: columns);
+        }
+        if (meals.isEmpty) {
+          return StateMessage(
+            icon: Icons.search_off,
+            title: 'Nenhuma receita encontrada',
+            message: list.searchText.trim().isEmpty
+                ? 'Esta categoria não tem receitas no momento.'
+                : 'Nada com "${list.searchText.trim()}" por aqui. '
+                      'Tente outro nome ou outra categoria.',
+          );
+        }
+        return Column(
+          children: [
+            // Busca na API em andamento: a grade já mostra o filtro local.
+            SizedBox(
+              height: 2,
+              child: list.searching ? const LinearProgressIndicator() : null,
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: list.load,
+                child: _MealGrid(meals: meals, columns: columns),
+              ),
+            ),
+          ],
+        );
+    }
+  }
+}
+
+class _MealGrid extends StatelessWidget {
+  final List<MealSummary> meals;
+  final int columns;
+
+  const _MealGrid({required this.meals, required this.columns});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space4,
+            0,
+            AppTokens.space4,
+            AppTokens.space2,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: Text(
+              meals.length == 1 ? '1 receita' : '${meals.length} receitas',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.space4,
+            0,
+            AppTokens.space4,
+            AppTokens.space5,
+          ),
+          sliver: SliverGrid.builder(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: AppTokens.space3,
+              crossAxisSpacing: AppTokens.space3,
+              childAspectRatio: 0.78,
+            ),
+            itemCount: meals.length,
+            itemBuilder: (context, index) {
+              final meal = meals[index];
+              return MealCard(
+                meal: meal,
+                onTap: () {
+                  // Fecha o teclado da busca; senão ele reabre ao voltar.
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => DetailScreen(meal: meal)),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

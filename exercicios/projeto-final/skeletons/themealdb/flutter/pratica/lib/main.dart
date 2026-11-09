@@ -1,24 +1,61 @@
 import 'package:flutter/material.dart';
-import 'screens/list_screen.dart';
+import 'package:provider/provider.dart';
+
+import 'api/themealdb_api.dart';
 import 'screens/favorites_screen.dart';
+import 'screens/list_screen.dart';
+import 'state/favorites_controller.dart';
+import 'state/meal_list_controller.dart';
+import 'storage/favorites_store.dart';
 import 'storage/meals_cache.dart';
+import 'ui/theme.dart';
 
 void main() {
-  runApp(const TheMealDbFinalApp());
+  runApp(
+    TheMealDbFinalApp(
+      api: TheMealDbApi(),
+      favoritesStore: FavoritesStore(),
+      mealsCache: MealsCache(),
+    ),
+  );
 }
 
+/// Raiz: monta as dependências (dados → estado) e entrega para a UI.
+/// Os testes passam uma API falsa por aqui.
 class TheMealDbFinalApp extends StatelessWidget {
-  const TheMealDbFinalApp({super.key});
+  final TheMealDbApi api;
+  final FavoritesStore favoritesStore;
+  final MealsCache? mealsCache;
+
+  const TheMealDbFinalApp({
+    super.key,
+    required this.api,
+    required this.favoritesStore,
+    this.mealsCache,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TheMealDB — Projeto Final',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        Provider<TheMealDbApi>.value(value: api),
+        ChangeNotifierProvider(
+          create: (_) => FavoritesController(favoritesStore)..load(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              MealListController(api, cache: mealsCache ?? MealsCache())
+                ..load(),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Receitas',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: ThemeMode.system,
+        home: const HomeShell(),
       ),
-      home: const HomeShell(),
     );
   }
 }
@@ -32,25 +69,41 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
-  final MealsCache _mealsCache = MealsCache();
 
   @override
   Widget build(BuildContext context) {
+    final favoritesCount = context.select<FavoritesController, int>(
+      (c) => c.items.length,
+    );
+
     return Scaffold(
-      body: _selectedIndex == 0
-          ? ListScreen(cache: _mealsCache)
-          : const FavoritesScreen(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
+      // IndexedStack mantém busca/categoria/rolagem ao trocar de aba.
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: const [ListScreen(), FavoritesScreen()],
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) =>
+            setState(() => _selectedIndex = index),
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.restaurant_menu_outlined),
+            selectedIcon: Icon(Icons.restaurant_menu),
             label: 'Receitas',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Semantics(
               identifier: 'tab-favorites',
+              child: Badge(
+                isLabelVisible: favoritesCount > 0,
+                label: Text('$favoritesCount'),
+                child: const Icon(Icons.favorite_border),
+              ),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: favoritesCount > 0,
+              label: Text('$favoritesCount'),
               child: const Icon(Icons.favorite),
             ),
             label: 'Favoritos',

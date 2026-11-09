@@ -1,92 +1,120 @@
-# Projeto Final — TheMealDB (receitas) em Flutter
+# Receitas — Projeto Final (TheMealDB + Flutter)
 
-Skeleton **opcional** de ponto de partida do **Projeto Final** (30 pts). A estrutura de telas e a lógica das
-5 features básicas vêm marcadas com `// TODO 1` a `// TODO 5`. **O visual é básico de propósito**: persistência,
-estados de loading/vazio/erro e todo o checklist de UI/UX (tema escuro, design tokens, responsividade,
-acessibilidade, ícone/splash) são **trabalho do grupo** — veja o [`enunciado.md`](../../../../enunciado.md).
+App Android em Flutter para descobrir receitas da [TheMealDB](https://www.themealdb.com/api.php):
+navegue pela grade de pratos, busque pelo nome, filtre por categoria, abra a receita com ingredientes
+e modo de preparo, e guarde suas favoritas (elas continuam salvas depois de fechar o app).
 
-**API deste tema:** TheMealDB — receitas; filtro por categoria (`filter.php?c=`); id `String`.
-O app também oferece busca por letra (`search.php?f=`) e mantém listas da API em cache
-local para consulta offline. Ao ficar sem conexão, mostra os resultados salvos da lista,
-categoria ou letra atual e permite tentar novamente ou puxar a tela para atualizar.
-Endpoints exatos, fixtures dos testes e gotchas: [`temas/03-themealdb/README.md`](../../../../temas/03-themealdb/README.md).
-Regras completas e rubrica: [`enunciado.md`](../../../../enunciado.md).
+- **Grupo:** Henrique Miguel de Jesus · João Pedro Schlindwein · Rafael Correa Zart
+- **Reserva do tema:** [issue #269](https://github.com/jacksonsmith/puc-iec-mobile-multiplataforma/issues/269)
+- **Decisões de arquitetura:** [`ADR.md`](./ADR.md)
 
-> ⚠️ Antes de codar: seu grupo **reservou** a combinação `themealdb + flutter` abrindo issue no
-> repo da disciplina? Cada combinação tema+framework é de um grupo só.
+| Lista | Busca | Categoria | Detalhe |
+|---|---|---|---|
+| ![Lista](screenshots/01-lista.png) | ![Busca](screenshots/02-busca.png) | ![Categoria](screenshots/08-categoria.png) | ![Detalhe](screenshots/03-detalhe.png) |
+
+| Modo de preparo | Favoritos | Tema escuro | Sem internet |
+|---|---|---|---|
+| ![Preparo](screenshots/04-preparo.png) | ![Favoritos](screenshots/05-favoritos.png) | ![Tema escuro](screenshots/06-tema-escuro.png) | ![Sem internet](screenshots/07-sem-internet.png) |
+
+## O que o app faz
+
+| # | Feature | Como funciona |
+|---|---|---|
+| 1 | **Lista** de dados reais | Grade de receitas com foto vinda de `search.php?s=`, puxar para atualizar |
+| 2 | **Detalhe** | Foto grande, categoria, origem, tags, ingredientes com foto e medida, modo de preparo em passos (`lookup.php?i=`) |
+| 3 | **Busca** | Campo de busca que procura no catálogo inteiro da API (`search.php?s=<texto>`), com filtro local instantâneo enquanto a resposta chega |
+| 4 | **Filtro por categoria** | Chips com as 14 categorias reais da API (`categories.php`), traduzidas; tocar busca a categoria inteira na API (`filter.php?c=`) |
+| 5 | **Favoritos** | Coração na grade e no detalhe; aba Favoritos com contador, arrastar para remover e "Desfazer"; salvos com `shared_preferences` e mantidos ao fechar o app |
+| 6 | **Explore A-Z** | Chips A-Z consultam `search.php?f=<letra>`; a busca por texto filtra os resultados da letra |
+| 7 | **Consulta offline** | Lista, categorias e letras ja consultadas ficam em cache local e podem ser exibidas sem conexao |
+
+**Estados tratados (nunca tela branca):** carregando (skeleton que pulsa), lista vazia ou busca sem
+resultado, sem internet e erro do servidor (mensagens diferentes, com botão "Tentar de novo"), foto
+que não carrega (ícone no lugar). Os favoritos abrem mesmo sem internet.
+
+**Visual:** Material 3 com tema claro e escuro seguindo o sistema, cores e espaçamentos definidos em
+um único arquivo (`lib/ui/theme.dart`), grade que se adapta à largura (2 colunas no celular em pé,
+mais em paisagem/tablet).
 
 ## Como rodar
 
+Pré-requisitos: **Flutter 3.35+** (testado com 3.47.6, canal stable), **JDK 17** e Android SDK
+(emulador ou celular com depuração USB).
+
 ```bash
-# a partir da raiz do SEU clone (do fork do grupo):
+# a partir da raiz do repositório
 cd exercicios/projeto-final/skeletons/themealdb/flutter/pratica
-ls flows   # confere que está no lugar certo: 01-list.yaml … 05-favorites.yaml
 
 flutter pub get
-flutter run          # com emulador Android aberto (ou dispositivo conectado)
+flutter run                 # com emulador aberto ou celular conectado
 ```
 
-## Onde estão os TODOs
+Não precisa de chave: a TheMealDB usa a chave pública de testes `1`, documentada pela própria API.
 
-| Feature | TODO | Arquivo |
-|---|---|---|
-| 1 — Lista consumindo a API | `TODO 1` | `lib/screens/list_screen.dart` |
-| 2 — Navegação lista → detalhe | `TODO 2` | `lib/screens/detail_screen.dart` |
-| 3 — Busca por texto | `TODO 3` | `lib/screens/list_screen.dart` |
-| 4 — Categoria/filtro (parâmetro real da API) | `TODO 4` | `lib/screens/list_screen.dart` |
-| 5 — Favoritos persistidos | `TODO 5` | `lib/screens/detail_screen.dart` + `lib/screens/favorites_screen.dart` |
-
-## Estados tratados
-
-Carregando, lista vazia, falha de rede sem cache, resultados em cache offline e atualização
-manual por botão ou gesto de puxar. O catálogo pode ser explorado de A a Z; a busca por texto
-filtra os resultados da letra ou categoria selecionada, e esses filtros são exclusivos.
-
-Os testes das features adicionais ficam em `test/list_screen_features_test.dart`.
-
-## Registro da contribuição — para atualizar a apresentação
-
-Esta contribuição implementa as duas melhorias que aparecem como próximos passos no slide 16:
-
-| Mudança | O que foi feito | Arquivos principais |
-|---|---|---|
-| Receitas offline | Persiste a lista inicial e os resultados de categoria/letra em `shared_preferences`. Se a API falhar por falta de conexão, a tela tenta carregar a cópia local, exibe o aviso “Sem internet — mostrando receitas salvas” e permite tentar novamente. Sem cópia, mostra erro com opção de nova tentativa. | `lib/storage/meals_cache.dart`, `lib/screens/list_screen.dart`, `lib/main.dart` |
-| Explorar A–Z | Adiciona busca por letra via `search.php?f=<letra>`. A resposta `meals: null` é tratada como lista vazia. A busca por texto filtra os resultados carregados; selecionar letra ou categoria limpa o outro filtro. | `lib/api/themealdb_api.dart`, `lib/screens/list_screen.dart` |
-| Testes | Cobre chamada por letra, resposta vazia, gravação do cache online, fallback offline da lista e da categoria, ausência de cache e combinação letra/busca/categoria. | `test/list_screen_features_test.dart` |
-
-### Sugestões para os slides
-
-- **Slide 3 (funcionalidades):** acrescentar “Acesso offline às últimas receitas carregadas” e “Exploração do catálogo por letra (A–Z)”.
-- **Slide 4 (demo):** demonstrar escolher uma letra, filtrar pelo nome e alternar para uma categoria; depois abrir a lista com rede desligada para mostrar o aviso e o cache. O fallback offline só pode ser demonstrado depois de carregar receitas com conexão.
-- **Slide 7 (arquitetura):** incluir `MealsCache` na camada de armazenamento. Atenção: esta cópia do skeleton não contém os controllers mostrados no slide; nestas alterações, a lógica de tela e as chamadas são coordenadas por `ListScreen`. Alinhar o desenho à versão que será apresentada ou refatorar para os controllers antes de afirmar essa separação.
-- **Slide 14 (qualidade):** nesta cópia local, `flutter test --no-pub` passou com 8 testes no total, incluindo os novos casos. Recontar após integrar à versão do grupo, pois ela pode ter outros testes.
-- **Slide 16 (limitações/próximos passos):** retirar “guardar a última lista para abrir offline” e “navegar o catálogo por letra” dos próximos passos. O cache cobre a lista inicial, categorias e letras consultadas; receitas ainda não carregadas não ficam disponíveis offline.
-
-Validação do ambiente local: os testes passaram. O APK e a execução em emulador não foram verificados nesta máquina porque não há Android SDK instalado.
-
-## Como se autoverificar (opcional)
-
-Os flows Maestro em `flows/` **não são mais avaliados pelo CI** — servem para vocês conferirem
-a mão que as 5 features funcionam. Para rodar localmente
-([instalar Maestro](https://docs.maestro.dev/getting-started/installing-maestro)):
+### Build (critério eliminatório)
 
 ```bash
-# com o app instalado e aberto no emulador:
-maestro test flows/
+flutter build apk --debug   # gera build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-Se mudarem a UI e um flow quebrar, tudo bem: ajustem o flow (ou ignorem) — o que vale é o app
-funcionar bem e o checklist do enunciado.
+> **Se o build reclamar de versão do Java/Gradle:** o projeto usa Gradle 8.14.3, Android Gradle
+> Plugin 8.11.1 e Kotlin 2.2.20 (mínimos do Flutter 3.47). Se o Flutter estiver usando um Java mais
+> novo que o 17 (ex.: o Java do Android Studio), aponte para o JDK 17:
+> `flutter config --jdk-dir "<caminho do JDK 17>"`.
+>
+> **Windows, "Could not write file" / `ShaderCompilerException`:** é o limite de 260 caracteres de
+> caminho do Windows. Clone o repositório numa pasta de caminho curto (ex.: `C:\dev\`).
 
-
-## Antes de abrir/atualizar o PR
-
-O build precisa passar — **critério eliminatório** (app que não builda não pode ser demonstrado e zera a Funcionalidade):
+### Testes
 
 ```bash
-flutter build apk --debug
+flutter test     # 25 casos (inclui cache offline e busca A-Z), sem internet (a API é simulada com MockClient)
+flutter analyze  # sem avisos
 ```
 
-Entrega em grupo: **um repositório do grupo** (todos como *collaborators*), branches + PRs internos; a **URL do repo** vai no Canvas.
-Adicionem `README.md` (com ≥ 3 screenshots) e `ADR.md` nesta pasta. Sem autograder: o professor clona, builda e avalia. Detalhes no
-[`enunciado.md`](../../../../enunciado.md).
+| Arquivo | O que testa |
+|---|---|
+| `test/meal_detail_test.dart` | leitura dos ingredientes (`strIngredient1..20` com vazios, nulos e espaços), tags e passos do preparo |
+| `test/meal_list_controller_test.dart` | busca local e na API, categoria + busca combinadas, categoria sem receitas, sem internet × erro HTTP |
+| `test/favorites_controller_test.dart` | favorito sobrevive a "fechar o app", remover e desfazer na mesma posição, entrada corrompida ignorada |
+| `test/widget_test.dart` | app inteiro: lista → busca → favoritar → aba Favoritos; tela de sem internet |
+
+## Arquitetura (resumo)
+
+```
+lib/
+  api/        TheMealDbApi — HTTP + JSON, erros viram ApiException com mensagem para o usuário
+  storage/    FavoritesStore, MealsCache â€” shared_preferences
+  models/     MealSummary, MealDetail, Ingredient
+  state/      MealListController, MealDetailController, FavoritesController (ChangeNotifier)
+  ui/         tema/tokens e widgets reutilizáveis (MealCard, MealImage, StateMessage, Skeleton)
+  screens/    ListScreen, DetailScreen, FavoritesScreen — sem fetch dentro dos widgets
+```
+
+Estado com `ChangeNotifier` + `provider`. O porquê, e as alternativas descartadas (Riverpod, Bloc,
+`setState` nas telas), está no [`ADR.md`](./ADR.md).
+
+## Testes manuais (Maestro, opcional)
+
+Os flows em `flows/` vieram do skeleton e não são mais avaliados pelo CI. Os identificadores que eles
+usam (`item-card-<id>`, `search-input`, `detail-favorite-button`, `tab-favorites`…) foram mantidos,
+mas o grupo não rodou o Maestro sobre a interface nova: o visual mudou (grade em vez de lista,
+categorias vindas da API), então alguns passos podem precisar de ajuste.
+
+## Registro das mudancas para atualizar a apresentacao
+
+Esta contribuicao implementa os dois proximos passos do slide 16: explorar o catalogo por letra e consultar receitas ja carregadas sem internet.
+
+| Mudanca | Implementacao | Arquivos principais |
+|---|---|---|
+| Cache offline | Salva a lista inicial, nomes das categorias, resultados de cada categoria e letras consultadas em `shared_preferences`. Quando a API indica falta de conexao, o controller usa o cache da origem selecionada e a tela mostra aviso e acao para tentar novamente. Erros HTTP continuam sendo tratados como erro do servidor. | `lib/storage/meals_cache.dart`, `lib/state/meal_list_controller.dart`, `lib/main.dart` |
+| Explorar A-Z | Consulta `search.php?f=<letra>`, descarta respostas antigas quando a letra muda e trata `meals: null` como lista vazia. Categoria e letra sao exclusivas; a busca textual filtra localmente os resultados da letra. | `lib/api/themealdb_api.dart`, `lib/state/meal_list_controller.dart`, `lib/screens/list_screen.dart` |
+| Testes | Cobre gravacao e fallback do cache, offline sem cache, cache por categoria, resultados por letra, letra sem receitas, exclusividade dos filtros e busca textual combinada. A API falsa tambem responde a `search.php?f=`. | `test/fake_api.dart`, `test/meal_list_controller_test.dart` |
+
+### Sugestoes para os slides
+
+- **Slide 3:** adicionar as funcionalidades "Explorar A-Z" e "Acesso offline a receitas ja carregadas".
+- **Slide 4:** demonstrar selecionar uma letra, filtrar por nome, trocar para uma categoria e abrir a lista offline depois de carregar receitas com internet.
+- **Slide 7:** incluir `MealsCache` na camada storage. `MealListController` coordena lista, categoria, letra e cache; `ListScreen` le o estado e chama as acoes.
+- **Slide 14:** atualizar a contagem de testes depois de rodar a suite completa na branch integrada.
+- **Slide 16:** remover "guardar a ultima lista para abrir offline" e "navegar o catalogo por letra" dos proximos passos. O cache guarda apenas origens ja carregadas; receitas ainda nao consultadas precisam de internet.

@@ -1,23 +1,37 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persistência local simples dos ids de receitas favoritadas.
-class FavoritesStore {
-  static const _key = 'favorite_meal_ids';
+import '../models/meal.dart';
 
-  Future<Set<String>> load() async {
+/// Persistência local dos favoritos.
+///
+/// Guarda o resumo de cada receita (id, nome, foto) e não só o id, para a
+/// aba Favoritos abrir sem internet e para receitas favoritadas a partir de
+/// uma categoria (que não estão na lista inicial) continuarem aparecendo.
+class FavoritesStore {
+  static const _key = 'favorite_meals_v2';
+
+  Future<List<MealSummary>> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList(_key) ?? [];
-    return stored.toSet();
+    final stored = prefs.getStringList(_key) ?? const [];
+    final result = <MealSummary>[];
+    for (final raw in stored) {
+      try {
+        result.add(
+            MealSummary.fromJson(jsonDecode(raw) as Map<String, dynamic>));
+      } on Object {
+        // Entrada corrompida: ignora em vez de derrubar a aba inteira.
+      }
+    }
+    return result;
   }
 
-  Future<void> toggle(String id) async {
+  Future<void> save(List<MealSummary> meals) async {
     final prefs = await SharedPreferences.getInstance();
-    final current = await load();
-    if (current.contains(id)) {
-      current.remove(id);
-    } else {
-      current.add(id);
-    }
-    await prefs.setStringList(_key, current.toList());
+    await prefs.setStringList(
+      _key,
+      meals.map((m) => jsonEncode(m.toJson())).toList(),
+    );
   }
 }

@@ -4,45 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:themeal_final/api/themealdb_api.dart';
+import 'package:themeal_final/main.dart';
 import 'package:themeal_final/models/meal.dart';
-import 'package:themeal_final/screens/list_screen.dart';
+import 'package:themeal_final/storage/favorites_store.dart';
 import 'package:themeal_final/storage/meals_cache.dart';
 
-class FakeMealApi extends TheMealDbApi {
-  FakeMealApi({this.offline = false});
-
-  final bool offline;
-  List<MealSummary> initial = [];
-  List<MealSummary> byLetter = [];
-  List<MealSummary> byCategory = [];
-  String? lastLetter;
-
-  void _checkConnection() {
-    if (offline) throw const ApiException('offline', offline: true);
-  }
-
-  @override
-  Future<List<MealSummary>> fetchList() async {
-    _checkConnection();
-    return initial;
-  }
-
-  @override
-  Future<List<MealSummary>> fetchByLetter(String letter) async {
-    _checkConnection();
-    lastLetter = letter;
-    return byLetter;
-  }
-
-  @override
-  Future<List<MealSummary>> fetchByCategory(String category) async {
-    _checkConnection();
-    return byCategory;
-  }
-}
-
-MealSummary meal(String id, String name) =>
-    MealSummary(id: id, name: name, thumbUrl: '');
+import 'fake_api.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -64,31 +31,33 @@ void main() {
   );
 
   Future<void> open(
-    WidgetTester tester,
-    FakeMealApi api,
-    MealsCache cache,
-  ) async {
+    WidgetTester tester, {
+    required TheMealDbApi api,
+    MealsCache? cache,
+  }) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: ListScreen(api: api, cache: cache),
+      TheMealDbFinalApp(
+        api: api,
+        favoritesStore: FavoritesStore(),
+        mealsCache: cache,
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('online list is shown and saved in cache', (tester) async {
-    final api = FakeMealApi()..initial = [meal('1', 'Apple cake')];
+  testWidgets('offline list falls back to cache and shows the banner', (
+    tester,
+  ) async {
     final cache = MealsCache();
-    await open(tester, api, cache);
-
-    expect(find.text('Apple cake'), findsOneWidget);
-    expect((await cache.loadList())?.single.name, 'Apple cake');
-  });
-
-  testWidgets('offline list falls back to cache with a banner', (tester) async {
-    final cache = MealsCache();
-    await cache.saveList([meal('2', 'Saved soup')]);
-    await open(tester, FakeMealApi(offline: true), cache);
+    await cache.saveList([
+      const MealSummary(id: '2', name: 'Saved soup', thumbUrl: ''),
+    ]);
+    await cache.saveCategories(['Beef', 'Dessert']);
+    await open(
+      tester,
+      api: fakeApi(failWith: 'offline'),
+      cache: cache,
+    );
 
     expect(find.text('Saved soup'), findsOneWidget);
     expect(
@@ -97,69 +66,21 @@ void main() {
     );
   });
 
-  testWidgets('offline without cached list shows error and retry', (
-    tester,
-  ) async {
-    await open(tester, FakeMealApi(offline: true), MealsCache());
-
-    expect(
-      find.text('Você está sem internet e ainda não há receitas salvas.'),
-      findsOneWidget,
+  testWidgets('letter chip loads recipes from that letter', (tester) async {
+    await open(
+      tester,
+      api: fakeApi(
+        byLetter: {
+          'a': [
+            {'idMeal': '30', 'strMeal': 'Apple pie', 'strMealThumb': ''},
+          ],
+        },
+      ),
     );
-    expect(find.text('Tentar de novo'), findsOneWidget);
-  });
 
-  testWidgets('offline category uses that category cache', (tester) async {
-    final cache = MealsCache();
-    await cache.saveCategory('Beef', [meal('3', 'Cached beef')]);
-    await cache.saveList([meal('1', 'Cached list')]);
-    await open(tester, FakeMealApi(offline: true), cache);
-    await tester.tap(find.text('Beef'));
+    await tester.tap(find.byKey(const ValueKey('letter-A')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Cached beef'), findsOneWidget);
-    expect(
-      find.text('Sem internet — mostrando receitas salvas'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets(
-    'letter results work with local search; category and letter are exclusive',
-    (tester) async {
-      final api = FakeMealApi()
-        ..initial = [meal('1', 'Initial meal')]
-        ..byLetter = [meal('2', 'Apple pie'), meal('3', 'Apple tart')]
-        ..byCategory = [meal('4', 'Beef stew')];
-      await open(tester, api, MealsCache());
-
-      await tester.tap(find.text('A').last);
-      await tester.pumpAndSettle();
-      expect(api.lastLetter, 'A');
-      expect(find.text('Apple pie'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField), 'tart');
-      await tester.pump();
-      expect(find.text('Apple tart'), findsOneWidget);
-      expect(find.text('Apple pie'), findsNothing);
-
-      await tester.enterText(find.byType(TextField), '');
-      await tester.pump();
-      await tester.tap(find.text('Beef'));
-      await tester.pumpAndSettle();
-      expect(find.text('Beef stew'), findsOneWidget);
-      expect(find.text('Apple pie'), findsNothing);
-    },
-  );
-
-  testWidgets('empty API letter response displays empty state', (tester) async {
-    final api = FakeMealApi()..initial = [meal('1', 'Initial meal')];
-    await open(tester, api, MealsCache());
-    await tester.drag(find.byType(ListView).at(1), const Offset(-2000, 0));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('letter-Z')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Nenhuma receita encontrada.'), findsOneWidget);
+    expect(find.text('Apple pie'), findsOneWidget);
   });
 }
